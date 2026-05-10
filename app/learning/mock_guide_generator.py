@@ -28,6 +28,9 @@ def create_mock_learning_guide(
     learner_level: str = "A2",
     overview: DocumentOverview | None = None,
     key_vocabulary: list[VocabularyItem] | None = None,
+    grammar_patterns: list[GrammarPattern] | None = None,
+    useful_phrases: list[UsefulPhrase] | None = None,
+    mini_lessons: list[MiniLesson] | None = None,
 ) -> LearningGuide:
     """Create a complete mock guide without calling an LLM provider."""
 
@@ -113,7 +116,7 @@ def create_mock_learning_guide(
         ),
     ]
 
-    grammar_patterns = [
+    mock_grammar_patterns = [
         GrammarPattern(
             name="The imperfect for background description",
             explanation="The imperfect often describes repeated actions, settings, and emotional background.",
@@ -131,7 +134,7 @@ def create_mock_learning_guide(
         ),
     ]
 
-    useful_phrases = [
+    mock_useful_phrases = [
         UsefulPhrase(
             phrase="Cela me rappelle...",
             translation="That reminds me of...",
@@ -149,7 +152,7 @@ def create_mock_learning_guide(
         ),
     ]
 
-    mini_lessons = [
+    mock_mini_lessons = [
         MiniLesson(
             title="Talking about memories",
             explanation="Use rappeler, souvenir, and revenir to describe how memories return.",
@@ -219,10 +222,10 @@ def create_mock_learning_guide(
         vocabulary_count=len(key_vocabulary or mock_key_vocabulary),
         topic_specific_words=sum(len(group.items) for group in vocabulary_groups),
         important_verbs=len(important_verbs),
-        useful_phrases=len(useful_phrases),
-        grammar_concepts=len(grammar_patterns),
+        useful_phrases=len(useful_phrases or mock_useful_phrases),
+        grammar_concepts=len(grammar_patterns or mock_grammar_patterns),
         practice_exercises=len(practice_exercises),
-        mini_lessons=len(mini_lessons),
+        mini_lessons=len(mini_lessons or mock_mini_lessons),
     )
 
     mock_overview = DocumentOverview(
@@ -257,9 +260,9 @@ def create_mock_learning_guide(
         key_vocabulary=key_vocabulary or mock_key_vocabulary,
         vocabulary_groups=vocabulary_groups,
         important_verbs=important_verbs,
-        grammar_patterns=grammar_patterns,
-        useful_phrases=useful_phrases,
-        mini_lessons=mini_lessons,
+        grammar_patterns=grammar_patterns or mock_grammar_patterns,
+        useful_phrases=useful_phrases or mock_useful_phrases,
+        mini_lessons=mini_lessons or mock_mini_lessons,
         practice_exercises=practice_exercises,
         reading_practice=reading_practice,
         review_sheet=review_sheet,

@@ -1,7 +1,15 @@
 from pathlib import Path
 
+import pytest
+
 from app.core.pipeline import generate_partial_groq_learning_guide_pdf
-from app.learning.content_schema import DocumentOverview, VocabularyItem
+from app.learning.content_schema import (
+    DocumentOverview,
+    GrammarPattern,
+    MiniLesson,
+    UsefulPhrase,
+    VocabularyItem,
+)
 
 
 def test_partial_groq_pipeline_without_groq_creates_pdf(tmp_path: Path) -> None:
@@ -51,8 +59,20 @@ def test_partial_groq_pipeline_with_monkeypatched_groq_creates_pdf(monkeypatch, 
             )
         ]
 
+    def fake_grammar(**kwargs) -> list[GrammarPattern]:
+        return [GrammarPattern(name="Test grammar", explanation="A useful pattern.")]
+
+    def fake_phrases(**kwargs) -> list[UsefulPhrase]:
+        return [UsefulPhrase(phrase="test phrase", translation="test meaning")]
+
+    def fake_lessons(**kwargs) -> list[MiniLesson]:
+        return [MiniLesson(title="Test lesson", explanation="A short lesson.")]
+
     monkeypatch.setattr("app.core.pipeline.generate_overview_with_groq", fake_overview)
     monkeypatch.setattr("app.core.pipeline.generate_key_vocabulary_with_groq", fake_vocabulary)
+    monkeypatch.setattr("app.core.pipeline.generate_grammar_patterns_with_groq", fake_grammar)
+    monkeypatch.setattr("app.core.pipeline.generate_useful_phrases_with_groq", fake_phrases)
+    monkeypatch.setattr("app.core.pipeline.generate_mini_lessons_with_groq", fake_lessons)
 
     result = generate_partial_groq_learning_guide_pdf(
         file_path=Path("data/sample_documents/sample_french_text.txt"),
@@ -67,10 +87,13 @@ def test_partial_groq_pipeline_with_monkeypatched_groq_creates_pdf(monkeypatch, 
     assert result["groq_sections_generated"] == [
         "Document Context Overview",
         "Key Vocabulary",
+        "Grammar Patterns",
+        "Useful Phrases and Expressions",
+        "Mini Language Lessons",
     ]
 
 
-def test_partial_groq_pipeline_falls_back_when_vocabulary_fails(monkeypatch, tmp_path: Path) -> None:
+def test_partial_groq_pipeline_raises_when_a_groq_section_fails(monkeypatch, tmp_path: Path) -> None:
     def fake_overview(**kwargs) -> DocumentOverview:
         return DocumentOverview(summary="Generated overview.")
 
@@ -80,15 +103,12 @@ def test_partial_groq_pipeline_falls_back_when_vocabulary_fails(monkeypatch, tmp
     monkeypatch.setattr("app.core.pipeline.generate_overview_with_groq", fake_overview)
     monkeypatch.setattr("app.core.pipeline.generate_key_vocabulary_with_groq", fake_vocabulary)
 
-    result = generate_partial_groq_learning_guide_pdf(
-        file_path=Path("data/sample_documents/sample_french_text.txt"),
-        source_language="French",
-        explanation_language="English",
-        learner_level="A2",
-        output_dir=tmp_path,
-        use_groq=True,
-    )
-
-    assert result["pdf_path"].exists()
-    assert result["groq_sections_generated"] == ["Document Context Overview"]
-    assert result["guide"].key_vocabulary
+    with pytest.raises(ValueError, match="Groq section generation failed"):
+        generate_partial_groq_learning_guide_pdf(
+            file_path=Path("data/sample_documents/sample_french_text.txt"),
+            source_language="French",
+            explanation_language="English",
+            learner_level="A2",
+            output_dir=tmp_path,
+            use_groq=True,
+        )

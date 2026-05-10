@@ -1,7 +1,16 @@
-from app.learning.content_schema import DocumentOverview, VocabularyItem
+from app.learning.content_schema import (
+    DocumentOverview,
+    GrammarPattern,
+    MiniLesson,
+    UsefulPhrase,
+    VocabularyItem,
+)
 from app.learning.groq_guide_generator import (
+    generate_grammar_patterns_with_groq,
     generate_key_vocabulary_with_groq,
+    generate_mini_lessons_with_groq,
     generate_overview_with_groq,
+    generate_useful_phrases_with_groq,
 )
 
 
@@ -121,3 +130,168 @@ def test_generate_key_vocabulary_with_groq_accepts_french_table_keys() -> None:
     assert vocabulary[0].term == "Portee"
     assert vocabulary[0].translation.startswith("Lignes")
     assert vocabulary[1].term == "accord"
+
+
+def test_generate_key_vocabulary_with_groq_accepts_mapping_response() -> None:
+    client = FakeGroqClient({"key_vocabulary": {"accord": "chord", "rythme": "rhythm"}})
+
+    vocabulary = generate_key_vocabulary_with_groq(
+        clean_text="Un accord donne le rythme.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert [item.term for item in vocabulary] == ["accord", "rythme"]
+
+
+def test_generate_key_vocabulary_with_groq_uses_local_fallback_when_needed() -> None:
+    client = FakeGroqClient({"unexpected": "shape"})
+
+    vocabulary = generate_key_vocabulary_with_groq(
+        clean_text="La melodie accompagne le rythme et la memoire musicale.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert vocabulary
+    assert vocabulary[0].translation == "Review this word in context"
+
+
+def test_generate_grammar_patterns_with_groq_returns_items() -> None:
+    client = FakeGroqClient(
+        {
+            "grammar_patterns": [
+                {
+                    "title": "The imperfect tense",
+                    "explanation": "Use it for background description.",
+                    "examples": ["La musique jouait."],
+                    "learning_note": "Useful for setting a scene.",
+                }
+            ]
+        }
+    )
+
+    patterns = generate_grammar_patterns_with_groq(
+        clean_text="La musique jouait doucement.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert patterns
+    assert isinstance(patterns[0], GrammarPattern)
+
+
+def test_generate_grammar_patterns_with_groq_accepts_mapping_response() -> None:
+    client = FakeGroqClient({"grammar_patterns": {"Present tense": "Used to explain facts."}})
+
+    patterns = generate_grammar_patterns_with_groq(
+        clean_text="Le rythme organise la musique.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert patterns[0].name == "Present tense"
+
+
+def test_generate_grammar_patterns_with_groq_uses_fallback_when_needed() -> None:
+    client = FakeGroqClient({"unexpected": []})
+
+    patterns = generate_grammar_patterns_with_groq(
+        clean_text="Le rythme organise la musique.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert patterns
+    assert patterns[0].name == "Present tense for explanations"
+
+
+def test_generate_useful_phrases_with_groq_returns_items() -> None:
+    client = FakeGroqClient(
+        {
+            "useful_phrases": [
+                {
+                    "phrase": "cela me rappelle",
+                    "meaning": "it reminds me",
+                    "usage_note": "Use it to discuss memories.",
+                }
+            ]
+        }
+    )
+
+    phrases = generate_useful_phrases_with_groq(
+        clean_text="Cela me rappelle une chanson.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert phrases
+    assert isinstance(phrases[0], UsefulPhrase)
+
+
+def test_generate_useful_phrases_with_groq_uses_fallback_when_needed() -> None:
+    client = FakeGroqClient({"unexpected": []})
+
+    phrases = generate_useful_phrases_with_groq(
+        clean_text="Le rythme organise la musique.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert phrases
+    assert phrases[0].phrase == "cela signifie"
+
+
+def test_generate_mini_lessons_with_groq_returns_items() -> None:
+    client = FakeGroqClient(
+        {
+            "mini_lessons": [
+                {
+                    "title": "Describe a memory",
+                    "objective": "Talk about memories with simple verbs.",
+                    "explanation": "Use rappeler with a noun or person.",
+                    "examples": ["Cette chanson me rappelle Paris."],
+                }
+            ]
+        }
+    )
+
+    lessons = generate_mini_lessons_with_groq(
+        clean_text="Cette chanson me rappelle Paris.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert lessons
+    assert isinstance(lessons[0], MiniLesson)
+
+
+def test_generate_mini_lessons_with_groq_uses_fallback_when_needed() -> None:
+    client = FakeGroqClient({"unexpected": []})
+
+    lessons = generate_mini_lessons_with_groq(
+        clean_text="Le rythme organise la musique.",
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        groq_client=client,
+    )
+
+    assert lessons
+    assert lessons[0].title == "Explain a concept simply"

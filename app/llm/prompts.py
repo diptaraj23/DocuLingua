@@ -66,7 +66,7 @@ def build_key_vocabulary_prompt(
 
     text = _truncate_text(clean_text)
     return f"""
-You are selecting key vocabulary for a {learner_level} learner.
+You are a vocabulary extraction API for a {learner_level} language learner.
 
 Task:
 Choose up to {max_words} useful {source_language} vocabulary items from the document.
@@ -77,11 +77,8 @@ Include frequent, topic-specific, and reusable words.
 Avoid proper nouns unless they are educationally important.
 Keep explanations concise in {explanation_language}.
 Do not copy tables or long passages from the source document.
-
-Document text is inside these tags:
-<document>
-{text}
-</document>
+Do not use source table headers such as "Concept" or "Definition" as JSON keys.
+Do not return a dictionary that maps words to meanings.
 
 return JSON only. Your entire response must start with {{ and end with }}.
 Use this exact JSON structure:
@@ -96,6 +93,167 @@ Use this exact JSON structure:
   ]
 }}
 Every item must use exactly these keys: word, meaning, part_of_speech, why_useful.
+
+Good example:
+{{
+  "key_vocabulary": [
+    {{
+      "word": "la mélodie",
+      "meaning": "melody",
+      "part_of_speech": "noun",
+      "why_useful": "Useful for discussing music and sound."
+    }}
+  ]
+}}
+
+Document text is inside these tags:
+<document>
+{text}
+</document>
+""".strip()
+
+
+def build_grammar_patterns_prompt(
+    clean_text: str,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+    max_patterns: int = 5,
+) -> str:
+    """Build a JSON-only prompt for grammar patterns."""
+
+    text = _truncate_text(clean_text)
+    return f"""
+You are identifying grammar patterns for a {learner_level} learner.
+
+Task:
+Identify up to {max_patterns} useful grammar patterns that appear in or are strongly suggested by this {source_language} document.
+Return JSON only.
+Keep explanations beginner-friendly in {explanation_language}.
+Avoid advanced grammar unless it is clearly needed.
+Use examples in {source_language}, but explain them in {explanation_language}.
+Do not translate sentence by sentence.
+Focus on reusable grammar patterns.
+Keep output concise and PDF-friendly.
+Do not return a dictionary that maps grammar names to explanations.
+Do not use source table headers as JSON keys.
+
+Document text is inside these tags:
+<document>
+{text}
+</document>
+
+return JSON only. Your entire response must start with {{ and end with }}.
+Use this exact JSON structure:
+{{
+  "grammar_patterns": [
+    {{
+      "title": "...",
+      "explanation": "...",
+      "examples": ["...", "..."],
+      "learning_note": "..."
+    }}
+  ]
+}}
+Every item must use exactly these keys: title, explanation, examples, learning_note.
+
+Good example:
+{{
+  "grammar_patterns": [
+    {{
+      "title": "Using the present tense for definitions",
+      "explanation": "French often uses the present tense to explain what something is or does.",
+      "examples": ["Le rythme organise la musique."],
+      "learning_note": "Useful for explaining concepts clearly."
+    }}
+  ]
+}}
+""".strip()
+
+
+def build_useful_phrases_prompt(
+    clean_text: str,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+    max_phrases: int = 15,
+) -> str:
+    """Build a JSON-only prompt for useful phrases and expressions."""
+
+    text = _truncate_text(clean_text)
+    return f"""
+You are extracting reusable phrases for a {learner_level} learner.
+
+Task:
+Extract up to {max_phrases} useful phrases and expressions from or inspired by this {source_language} document.
+Return JSON only.
+Prefer phrases useful beyond this one document.
+Avoid full sentence-by-sentence translation.
+Include expressions useful for speaking or writing about the document topic.
+Keep meanings concise in {explanation_language}.
+
+Document text is inside these tags:
+<document>
+{text}
+</document>
+
+return JSON only. Your entire response must start with {{ and end with }}.
+Use this exact JSON structure:
+{{
+  "useful_phrases": [
+    {{
+      "phrase": "...",
+      "meaning": "...",
+      "usage_note": "..."
+    }}
+  ]
+}}
+Every item must use exactly these keys: phrase, meaning, usage_note.
+""".strip()
+
+
+def build_mini_lessons_prompt(
+    clean_text: str,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+    max_lessons: int = 4,
+) -> str:
+    """Build a JSON-only prompt for mini language lessons."""
+
+    text = _truncate_text(clean_text)
+    return f"""
+You are creating short language lessons for a {learner_level} learner.
+
+Task:
+Create up to {max_lessons} short mini lessons inspired by this {source_language} document.
+Return JSON only.
+The lessons should help the learner use the language, not just understand this one document.
+Each lesson should have a clear objective.
+Examples should be simple and useful.
+Do not create exercises here.
+Do not create sentence-wise translation.
+Keep content concise and suitable for a generated PDF workbook.
+Write explanations in {explanation_language}.
+
+Document text is inside these tags:
+<document>
+{text}
+</document>
+
+return JSON only. Your entire response must start with {{ and end with }}.
+Use this exact JSON structure:
+{{
+  "mini_lessons": [
+    {{
+      "title": "...",
+      "objective": "...",
+      "explanation": "...",
+      "examples": ["...", "..."]
+    }}
+  ]
+}}
+Every item must use exactly these keys: title, objective, explanation, examples.
 """.strip()
 
 GRAMMAR_PROMPT = """

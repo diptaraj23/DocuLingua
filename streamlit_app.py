@@ -95,12 +95,15 @@ if process_clicked and uploaded_file:
 st.divider()
 st.subheader("Sample PDF Guide")
 st.write(
-    "Generate a static PDF guide. Only the overview and key vocabulary can use Groq for now; "
-    "the remaining sections still use sample content."
+    "Generate a static PDF guide. Groq can generate the overview, vocabulary, grammar patterns, "
+    "useful phrases, and mini lessons. The remaining sections still use sample content."
 )
-use_groq = st.checkbox("Use Groq for overview and vocabulary", value=False)
+use_groq = st.checkbox("Use Groq for language guide sections", value=False)
 if use_groq:
-    st.info("Groq will generate only Document Context Overview and Key Vocabulary in this step.")
+    st.info(
+        "Groq will generate Document Context Overview, Key Vocabulary, Grammar Patterns, "
+        "Useful Phrases and Expressions, and Mini Language Lessons."
+    )
     if not settings.groq_api_key:
         st.warning("GROQ_API_KEY is missing. Add it to `.env` or disable Groq to use mock content.")
 
@@ -145,4 +148,4 @@ if generate_clicked and st.session_state.saved_path:
     except Exception as error:
         st.error(f"Could not generate PDF guide: {error}")
 
-st.caption("This MVP flow is hybrid: Groq can power two sections while the rest remains mock content.")
+st.caption("This MVP flow is hybrid: Groq powers selected learning sections while the rest remains mock content.")

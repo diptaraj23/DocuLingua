@@ -10,14 +10,21 @@ from app.core.text_cleaner import clean_text
 from app.core.text_stats import get_text_statistics
 from app.learning.content_schema import DocumentOverview, LearningGuide
 from app.learning.groq_guide_generator import (
+    generate_answer_key_with_groq,
     generate_grammar_patterns_with_groq,
+    generate_important_verbs_with_groq,
     generate_key_vocabulary_with_groq,
     generate_mini_lessons_with_groq,
     generate_overview_with_groq,
+    generate_practice_exercises_with_groq,
+    generate_reading_practice_with_groq,
+    generate_review_sheet_with_groq,
     generate_useful_phrases_with_groq,
 )
 from app.learning.mock_guide_generator import create_mock_learning_guide
 from app.pdf.pdf_builder import build_learning_guide_pdf
+
+MAX_GROQ_INPUT_CHARS = 12000
 
 
 def process_document_for_preview(file_path: Path) -> dict:
@@ -76,13 +83,18 @@ def generate_partial_groq_learning_guide_pdf(
     """Generate a PDF with selected Groq sections and mock remaining sections."""
 
     processed = process_document_for_preview(file_path)
-    clean_text_for_groq = processed["clean_text"][:12000]
+    clean_text_for_groq = processed["clean_text"][:MAX_GROQ_INPUT_CHARS]
     # Future work can process larger documents chunk-by-chunk; this MVP sends a safe truncation.
     overview = None
     key_vocabulary = None
+    important_verbs = None
     grammar_patterns = None
     useful_phrases = None
     mini_lessons = None
+    practice_exercises = None
+    reading_practice = None
+    review_sheet = None
+    answer_key = None
     groq_sections_generated: list[str] = []
 
     if use_groq:
@@ -103,6 +115,14 @@ def generate_partial_groq_learning_guide_pdf(
                 learner_level=learner_level,
             )
             groq_sections_generated.append("Key Vocabulary")
+
+            important_verbs = generate_important_verbs_with_groq(
+                clean_text=clean_text_for_groq,
+                source_language=source_language,
+                explanation_language=explanation_language,
+                learner_level=learner_level,
+            )
+            groq_sections_generated.append("Important Verbs")
 
             grammar_patterns = generate_grammar_patterns_with_groq(
                 clean_text=clean_text_for_groq,
@@ -127,6 +147,38 @@ def generate_partial_groq_learning_guide_pdf(
                 learner_level=learner_level,
             )
             groq_sections_generated.append("Mini Language Lessons")
+
+            practice_exercises = generate_practice_exercises_with_groq(
+                clean_text=clean_text_for_groq,
+                source_language=source_language,
+                explanation_language=explanation_language,
+                learner_level=learner_level,
+            )
+            groq_sections_generated.append("Practice Exercises")
+
+            reading_practice = generate_reading_practice_with_groq(
+                clean_text=clean_text_for_groq,
+                source_language=source_language,
+                explanation_language=explanation_language,
+                learner_level=learner_level,
+            )
+            groq_sections_generated.append("Short Reading Practice")
+
+            review_sheet = generate_review_sheet_with_groq(
+                clean_text=clean_text_for_groq,
+                source_language=source_language,
+                explanation_language=explanation_language,
+                learner_level=learner_level,
+            )
+            groq_sections_generated.append("Review Sheet")
+
+            answer_key = generate_answer_key_with_groq(
+                exercises=practice_exercises,
+                reading_practice=reading_practice,
+                source_language=source_language,
+                explanation_language=explanation_language,
+            )
+            groq_sections_generated.append("Answer Key")
         except ValueError as error:
             raise ValueError(f"Groq section generation failed: {error}") from error
 
@@ -138,9 +190,14 @@ def generate_partial_groq_learning_guide_pdf(
         learner_level=learner_level,
         overview=overview,
         key_vocabulary=key_vocabulary,
+        important_verbs=important_verbs,
         grammar_patterns=grammar_patterns,
         useful_phrases=useful_phrases,
         mini_lessons=mini_lessons,
+        practice_exercises=practice_exercises,
+        reading_practice=reading_practice,
+        review_sheet=review_sheet,
+        answer_key=answer_key,
     )
 
     suffix = "groq_sample_learning_guide" if use_groq else "sample_learning_guide"

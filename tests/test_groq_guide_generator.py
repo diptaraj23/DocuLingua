@@ -2,14 +2,23 @@ from app.learning.content_schema import (
     DocumentOverview,
     GrammarPattern,
     MiniLesson,
+    PracticeExercise,
+    ReadingPractice,
+    ReviewSheet,
     UsefulPhrase,
+    VerbItem,
     VocabularyItem,
 )
 from app.learning.groq_guide_generator import (
+    generate_answer_key_with_groq,
     generate_grammar_patterns_with_groq,
+    generate_important_verbs_with_groq,
     generate_key_vocabulary_with_groq,
     generate_mini_lessons_with_groq,
     generate_overview_with_groq,
+    generate_practice_exercises_with_groq,
+    generate_reading_practice_with_groq,
+    generate_review_sheet_with_groq,
     generate_useful_phrases_with_groq,
 )
 
@@ -295,3 +304,99 @@ def test_generate_mini_lessons_with_groq_uses_fallback_when_needed() -> None:
 
     assert lessons
     assert lessons[0].title == "Explain a concept simply"
+
+
+def test_generate_important_verbs_with_groq_returns_items() -> None:
+    client = FakeGroqClient({"important_verbs": [{"verb": "jouer", "meaning": "to play", "common_form": "joue", "learning_note": "Reusable verb."}]})
+
+    verbs = generate_important_verbs_with_groq("jouer", "French", "English", "A2", groq_client=client)
+
+    assert verbs and isinstance(verbs[0], VerbItem)
+
+
+def test_generate_important_verbs_with_groq_accepts_mapping_response() -> None:
+    client = FakeGroqClient({"important_verbs": {"jouer": "to play", "chanter": "to sing"}})
+
+    verbs = generate_important_verbs_with_groq("jouer chanter", "French", "English", "A2", groq_client=client)
+
+    assert [verb.infinitive for verb in verbs] == ["jouer", "chanter"]
+
+
+def test_generate_important_verbs_with_groq_uses_fallback_when_needed() -> None:
+    client = FakeGroqClient({"unexpected": []})
+
+    verbs = generate_important_verbs_with_groq(
+        "Ecoutez la musique et chanter doucement.",
+        "French",
+        "English",
+        "A2",
+        groq_client=client,
+    )
+
+    assert verbs
+    assert verbs[0].translation == "Review this verb in context"
+
+
+def test_generate_practice_exercises_with_groq_returns_items() -> None:
+    client = FakeGroqClient({"practice_exercises": [{"instruction": "Fill the blank.", "question": "Je ___ de la musique.", "answer": "joue"}]})
+
+    exercises = generate_practice_exercises_with_groq("jouer", "French", "English", "A2", groq_client=client)
+
+    assert exercises and isinstance(exercises[0], PracticeExercise)
+
+
+def test_generate_practice_exercises_with_groq_accepts_alternate_keys() -> None:
+    client = FakeGroqClient(
+        {
+            "exercices": [
+                {
+                    "consigne": "Complete the sentence.",
+                    "phrase": "Je ___ la musique.",
+                    "réponse": "joue",
+                }
+            ]
+        }
+    )
+
+    exercises = generate_practice_exercises_with_groq("jouer", "French", "English", "A2", groq_client=client)
+
+    assert exercises
+    assert exercises[0].answers == ["joue"]
+
+
+def test_generate_practice_exercises_with_groq_uses_fallback_when_needed() -> None:
+    client = FakeGroqClient({"unexpected": []})
+
+    exercises = generate_practice_exercises_with_groq("jouer", "French", "English", "A2", groq_client=client)
+
+    assert exercises
+    assert exercises[0].answers == ["La"]
+
+
+def test_generate_reading_practice_with_groq_returns_item() -> None:
+    client = FakeGroqClient({"reading_practice": {"title": "Music", "passage": "Je joue de la musique.", "vocabulary_help": ["jouer = to play"], "questions": ["Que fait je?"], "answers": ["Je joue."]}})
+
+    reading = generate_reading_practice_with_groq("jouer", "French", "English", "A2", groq_client=client)
+
+    assert isinstance(reading, ReadingPractice)
+    assert reading.passage
+
+
+def test_generate_review_sheet_with_groq_returns_item() -> None:
+    client = FakeGroqClient({"review_sheet": {"top_vocabulary": ["musique"], "top_verbs": ["jouer"], "top_phrases": ["par exemple"], "grammar_points": ["present tense"], "study_tips": ["Review aloud"]}})
+
+    review = generate_review_sheet_with_groq("jouer", "French", "English", "A2", groq_client=client)
+
+    assert isinstance(review, ReviewSheet)
+    assert review.vocabulary_to_review
+
+
+def test_generate_answer_key_with_groq_returns_list() -> None:
+    client = FakeGroqClient({"answer_key": ["1. joue", "Reading 1. Je joue."]})
+    exercises = [PracticeExercise(title="Exercise", answers=["joue"])]
+    reading = ReadingPractice(answers=["Je joue."])
+
+    answer_key = generate_answer_key_with_groq(exercises, reading, "French", "English", groq_client=client)
+
+    assert answer_key
+    assert isinstance(answer_key[0], str)

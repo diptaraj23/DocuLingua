@@ -1,4 +1,13 @@
-from app.learning.content_schema import GrammarPattern, LearningGuide, MiniLesson, UsefulPhrase
+from app.learning.content_schema import (
+    GrammarPattern,
+    LearningGuide,
+    MiniLesson,
+    PracticeExercise,
+    ReadingPractice,
+    ReviewSheet,
+    UsefulPhrase,
+    VerbItem,
+)
 from app.learning.mock_guide_generator import create_mock_learning_guide
 
 
@@ -40,3 +49,27 @@ def test_mock_learning_guide_accepts_external_groq_sections() -> None:
     assert guide.grammar_patterns == grammar
     assert guide.useful_phrases == phrases
     assert guide.mini_lessons == lessons
+
+
+def test_mock_learning_guide_accepts_remaining_external_sections() -> None:
+    verbs = [VerbItem(infinitive="jouer", translation="to play")]
+    exercises = [PracticeExercise(title="Test", questions=["Q"], answers=["A"])]
+    reading = ReadingPractice(passage="Je joue.", questions=["Q"], answers=["A"])
+    review = ReviewSheet(key_points=["Review this"])
+    answer_key = ["1. A"]
+
+    guide = create_mock_learning_guide(
+        clean_text="Je joue de la musique.",
+        stats={"word_count": 5, "paragraph_count": 1},
+        important_verbs=verbs,
+        practice_exercises=exercises,
+        reading_practice=reading,
+        review_sheet=review,
+        answer_key=answer_key,
+    )
+
+    assert guide.important_verbs == verbs
+    assert guide.practice_exercises == exercises
+    assert guide.reading_practice == reading
+    assert guide.review_sheet == review
+    assert guide.answer_key == answer_key

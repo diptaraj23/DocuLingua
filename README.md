@@ -95,9 +95,9 @@ streamlit run streamlit_app.py
 
 Phase 1, Phase 2 document ingestion, the first non-LLM PDF flow, and the first Groq-powered content step are implemented. The app supports document upload, TXT/PDF extraction, text cleaning, deterministic chunking, document statistics, mock `LearningGuide` generation, static PDF rendering, and Streamlit PDF download.
 
-The Groq client wrapper and prompt builders are available for these real sections: Document Context Overview, Key Vocabulary, Grammar Patterns, Useful Phrases and Expressions, and Mini Language Lessons. These sections are generated from the document context and are not sentence-wise translations.
+The Groq client wrapper and prompt builders now cover the full generated learning guide: overview, vocabulary, verbs, grammar, phrases, mini lessons, exercises, reading practice, review sheet, and answer key. The output remains a static PDF. DocuLingua does not generate sentence-wise translation or interactive exercises.
 
-Remaining sections still use deterministic mock content: Important Verbs, Practice Exercises, Short Reading Practice, Review Sheet, and Answer Key. Tests use mocked Groq responses and do not call the real API.
+Tests use mocked Groq responses and do not call the real API.
 
 To use Groq:
 

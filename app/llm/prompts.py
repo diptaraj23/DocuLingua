@@ -256,6 +256,166 @@ Use this exact JSON structure:
 Every item must use exactly these keys: title, objective, explanation, examples.
 """.strip()
 
+
+def build_important_verbs_prompt(
+    clean_text: str,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+    max_verbs: int = 15,
+) -> str:
+    """Build a JSON-only prompt for important verbs."""
+
+    text = _truncate_text(clean_text)
+    return f"""
+Extract up to {max_verbs} useful verbs from this {source_language} document for a {learner_level} learner.
+Return JSON only.
+Prefer common and reusable verbs that help the learner discuss the document topic.
+Keep explanations beginner-friendly in {explanation_language}.
+Do not translate the document sentence by sentence.
+
+Expected JSON:
+{{
+  "important_verbs": [
+    {{"verb": "...", "meaning": "...", "common_form": "...", "learning_note": "..."}}
+  ]
+}}
+
+Document:
+<document>
+{text}
+</document>
+""".strip()
+
+
+def build_practice_exercises_prompt(
+    clean_text: str,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+    max_exercises: int = 10,
+) -> str:
+    """Build a JSON-only prompt for static practice exercises."""
+
+    text = _truncate_text(clean_text)
+    return f"""
+Create up to {max_exercises} static PDF-friendly language exercises for a {learner_level} learner.
+Return JSON only.
+Use types such as vocabulary matching, fill in the blanks, article choice, verb choice, and short writing prompts.
+Include the answer for every exercise.
+Do not create interactive exercises.
+Do not create sentence-wise translation.
+
+Expected JSON:
+{{
+  "practice_exercises": [
+    {{"instruction": "...", "question": "...", "answer": "..."}}
+  ]
+}}
+
+Document:
+<document>
+{text}
+</document>
+""".strip()
+
+
+def build_reading_practice_prompt(
+    clean_text: str,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+) -> str:
+    """Build a JSON-only prompt for reading practice."""
+
+    text = _truncate_text(clean_text)
+    return f"""
+Create a short simplified reading passage in {source_language} for a {learner_level} learner.
+Return JSON only.
+The passage should be inspired by the document context, not copied from the document.
+Include vocabulary help, comprehension questions, and answers.
+Do not translate the whole passage sentence by sentence.
+
+Expected JSON:
+{{
+  "reading_practice": {{
+    "title": "...",
+    "passage": "...",
+    "vocabulary_help": ["...", "..."],
+    "questions": ["...", "..."],
+    "answers": ["...", "..."]
+  }}
+}}
+
+Document:
+<document>
+{text}
+</document>
+""".strip()
+
+
+def build_review_sheet_prompt(
+    clean_text: str,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+) -> str:
+    """Build a JSON-only prompt for the review sheet."""
+
+    text = _truncate_text(clean_text)
+    return f"""
+Create a concise one-page-style review sheet for a {learner_level} learner.
+Return JSON only.
+Include the most useful things the learner should remember.
+Keep it PDF-friendly.
+Avoid sentence-wise translation.
+
+Expected JSON:
+{{
+  "review_sheet": {{
+    "top_vocabulary": ["...", "..."],
+    "top_verbs": ["...", "..."],
+    "top_phrases": ["...", "..."],
+    "grammar_points": ["...", "..."],
+    "study_tips": ["...", "..."]
+  }}
+}}
+
+Document:
+<document>
+{text}
+</document>
+""".strip()
+
+
+def build_answer_key_prompt(
+    exercises: list,
+    reading_practice: dict,
+    source_language: str,
+    explanation_language: str,
+) -> str:
+    """Build a JSON-only prompt for the answer key."""
+
+    return f"""
+Create a concise answer key in {explanation_language} for these static exercises and reading practice.
+Return JSON only.
+Number answers clearly.
+Do not add unnecessary explanations unless helpful.
+
+Expected JSON:
+{{
+  "answer_key": ["...", "..."]
+}}
+
+Exercises:
+{exercises}
+
+Reading practice:
+{reading_practice}
+
+Source language: {source_language}
+""".strip()
+
 GRAMMAR_PROMPT = """
 Identify useful grammar patterns in the document for the learner's level.
 """

@@ -28,9 +28,14 @@ def create_mock_learning_guide(
     learner_level: str = "A2",
     overview: DocumentOverview | None = None,
     key_vocabulary: list[VocabularyItem] | None = None,
+    important_verbs: list[VerbItem] | None = None,
     grammar_patterns: list[GrammarPattern] | None = None,
     useful_phrases: list[UsefulPhrase] | None = None,
     mini_lessons: list[MiniLesson] | None = None,
+    practice_exercises: list[PracticeExercise] | None = None,
+    reading_practice: ReadingPractice | None = None,
+    review_sheet: ReviewSheet | None = None,
+    answer_key: list[str] | None = None,
 ) -> LearningGuide:
     """Create a complete mock guide without calling an LLM provider."""
 
@@ -95,7 +100,7 @@ def create_mock_learning_guide(
         ),
     ]
 
-    important_verbs = [
+    mock_important_verbs = [
         VerbItem(
             infinitive="revenir",
             translation="to come back",
@@ -167,7 +172,7 @@ def create_mock_learning_guide(
         ),
     ]
 
-    practice_exercises = [
+    mock_practice_exercises = [
         PracticeExercise(
             title="Vocabulary Match",
             instructions="Match each French word with its English meaning.",
@@ -190,7 +195,7 @@ def create_mock_learning_guide(
         ),
     ]
 
-    reading_practice = ReadingPractice(
+    mock_reading_practice = ReadingPractice(
         passage=(
             "Le dimanche matin, Elise ecoute une vieille chanson. La melodie lui rappelle "
             "son grand-pere, la pluie sur les vitres, et les souvenirs de son village."
@@ -203,7 +208,7 @@ def create_mock_learning_guide(
         answers=["Le dimanche matin.", "Son grand-pere.", "La pluie, le village, et des souvenirs d'ete."],
     )
 
-    review_sheet = ReviewSheet(
+    mock_review_sheet = ReviewSheet(
         key_points=[
             "Use the imperfect to describe repeated memories and background scenes.",
             "Practice music and memory vocabulary together.",
@@ -221,10 +226,10 @@ def create_mock_learning_guide(
     learning_statistics = LearningStatistics(
         vocabulary_count=len(key_vocabulary or mock_key_vocabulary),
         topic_specific_words=sum(len(group.items) for group in vocabulary_groups),
-        important_verbs=len(important_verbs),
+        important_verbs=len(important_verbs or mock_important_verbs),
         useful_phrases=len(useful_phrases or mock_useful_phrases),
         grammar_concepts=len(grammar_patterns or mock_grammar_patterns),
-        practice_exercises=len(practice_exercises),
+        practice_exercises=len(practice_exercises or mock_practice_exercises),
         mini_lessons=len(mini_lessons or mock_mini_lessons),
     )
 
@@ -259,14 +264,14 @@ def create_mock_learning_guide(
         overview=selected_overview,
         key_vocabulary=key_vocabulary or mock_key_vocabulary,
         vocabulary_groups=vocabulary_groups,
-        important_verbs=important_verbs,
+        important_verbs=important_verbs or mock_important_verbs,
         grammar_patterns=grammar_patterns or mock_grammar_patterns,
         useful_phrases=useful_phrases or mock_useful_phrases,
         mini_lessons=mini_lessons or mock_mini_lessons,
-        practice_exercises=practice_exercises,
-        reading_practice=reading_practice,
-        review_sheet=review_sheet,
-        answer_key=[
+        practice_exercises=practice_exercises or mock_practice_exercises,
+        reading_practice=reading_practice or mock_reading_practice,
+        review_sheet=review_sheet or mock_review_sheet,
+        answer_key=answer_key or [
             "Vocabulary Match: 1-b, 2-a, 3-c.",
             "Complete the Sentences: chanson, rappelle, coeur.",
             "Reading Practice: see the reading answers listed in the section.",

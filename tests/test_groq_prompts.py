@@ -1,8 +1,13 @@
 from app.llm.prompts import (
+    build_answer_key_prompt,
     build_document_overview_prompt,
     build_grammar_patterns_prompt,
+    build_important_verbs_prompt,
     build_key_vocabulary_prompt,
     build_mini_lessons_prompt,
+    build_practice_exercises_prompt,
+    build_reading_practice_prompt,
+    build_review_sheet_prompt,
     build_useful_phrases_prompt,
 )
 
@@ -84,3 +89,21 @@ def test_mini_lessons_prompt_requests_json_only_and_expected_fields() -> None:
     assert "objective" in prompt
     assert "explanation" in prompt
     assert "examples" in prompt
+
+
+def test_remaining_section_prompts_request_json_and_expected_fields() -> None:
+    verbs = build_important_verbs_prompt("jouer chanter", "French", "English", "A2")
+    exercises = build_practice_exercises_prompt("jouer chanter", "French", "English", "A2")
+    reading = build_reading_practice_prompt("jouer chanter", "French", "English", "A2")
+    review = build_review_sheet_prompt("jouer chanter", "French", "English", "A2")
+    answers = build_answer_key_prompt([], {}, "French", "English")
+
+    assert "Return JSON only" in verbs and "important_verbs" in verbs and "verb" in verbs
+    assert "sentence by sentence" in verbs
+    assert "Return JSON only" in exercises and "practice_exercises" in exercises
+    assert "interactive exercises" in exercises and "sentence-wise translation" in exercises
+    assert "Return JSON only" in reading and "reading_practice" in reading
+    assert "vocabulary_help" in reading and "sentence by sentence" in reading
+    assert "Return JSON only" in review and "review_sheet" in review
+    assert "top_vocabulary" in review and "sentence-wise translation" in review
+    assert "Return JSON only" in answers and "answer_key" in answers

@@ -16,8 +16,7 @@ st.title("DocuLingua")
 st.caption("Turn a French document into a static PDF learning guide.")
 
 st.write(
-    "Upload a PDF or TXT file to extract, clean, chunk, and preview the text. "
-    "Groq content generation and PDF export will come in a later phase."
+    "Upload a PDF or TXT file to extract, clean, chunk, preview, and generate a static PDF learning guide."
 )
 
 uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt"])
@@ -95,14 +94,14 @@ if process_clicked and uploaded_file:
 st.divider()
 st.subheader("Sample PDF Guide")
 st.write(
-    "Generate a static PDF guide. Groq can generate the overview, vocabulary, grammar patterns, "
-    "useful phrases, and mini lessons. The remaining sections still use sample content."
+    "Generate a static PDF guide. Groq can now generate all major PDF learning sections. "
+    "The guide does not create sentence-wise translation or interactive exercises."
 )
-use_groq = st.checkbox("Use Groq for language guide sections", value=False)
+use_groq = st.checkbox("Use Groq to generate the full learning guide", value=False)
 if use_groq:
     st.info(
-        "Groq will generate Document Context Overview, Key Vocabulary, Grammar Patterns, "
-        "Useful Phrases and Expressions, and Mini Language Lessons."
+        "Groq will generate the overview, vocabulary, verbs, grammar, phrases, mini lessons, "
+        "practice exercises, reading practice, review sheet, and answer key."
     )
     if not settings.groq_api_key:
         st.warning("GROQ_API_KEY is missing. Add it to `.env` or disable Groq to use mock content.")
@@ -148,4 +147,4 @@ if generate_clicked and st.session_state.saved_path:
     except Exception as error:
         st.error(f"Could not generate PDF guide: {error}")
 
-st.caption("This MVP flow is hybrid: Groq powers selected learning sections while the rest remains mock content.")
+st.caption("This MVP flow outputs a static PDF. Disable Groq to generate a fully mock/sample guide.")

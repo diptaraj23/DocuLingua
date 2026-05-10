@@ -1,0 +1,76 @@
+@page {
+  margin: 24mm 18mm;
+}
+
+body {
+  color: #202124;
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.5;
+}
+
+section {
+  break-inside: avoid;
+  margin-bottom: 20mm;
+}
+
+.cover {
+  align-items: center;
+  break-after: page;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 220mm;
+  text-align: center;
+}
+
+.eyebrow {
+  color: #47625f;
+  font-size: 10pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3 {
+  color: #163b3a;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 32pt;
+}
+
+h2 {
+  border-bottom: 1px solid #b9c7c5;
+  font-size: 18pt;
+  padding-bottom: 4mm;
+}
+
+h3 {
+  font-size: 13pt;
+  margin-bottom: 2mm;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 45mm 1fr;
+  row-gap: 3mm;
+}
+
+dt {
+  font-weight: 700;
+}
+
+dd {
+  margin: 0;
+}
+
+.stats {
+  columns: 2;
+}
+
+.note {
+  color: #5f6368;
+}

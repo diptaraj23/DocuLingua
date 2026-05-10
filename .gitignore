@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Local app storage
+app/storage/uploads/*
+app/storage/outputs/*
+app/storage/cache/*
+!app/storage/uploads/.gitkeep
+!app/storage/outputs/.gitkeep
+!app/storage/cache/.gitkeep
+
+# Generated files
+*.pdf
+data/sample_outputs/*
+!data/sample_outputs/.gitkeep
+
+# OS and editor
+docs/
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

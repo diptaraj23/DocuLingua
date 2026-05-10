@@ -1,0 +1,10 @@
+streamlit
+groq
+python-dotenv
+pydantic
+pydantic-settings
+pymupdf
+jinja2
+weasyprint
+spacy
+pytest

@@ -9,6 +9,10 @@ from app.core.text_chunker import chunk_text
 from app.core.text_cleaner import clean_text
 from app.core.text_stats import get_text_statistics
 from app.learning.content_schema import DocumentOverview, LearningGuide
+from app.learning.groq_guide_generator import (
+    generate_key_vocabulary_with_groq,
+    generate_overview_with_groq,
+)
 from app.learning.mock_guide_generator import create_mock_learning_guide
 from app.pdf.pdf_builder import build_learning_guide_pdf
 
@@ -55,6 +59,67 @@ def generate_mock_learning_guide_pdf(
         "pdf_path": pdf_path,
         "stats": processed["stats"],
         "chunks": processed["chunks"],
+    }
+
+
+def generate_partial_groq_learning_guide_pdf(
+    file_path: Path,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+    output_dir: Path,
+    use_groq: bool = True,
+) -> dict:
+    """Generate a PDF with Groq overview/vocabulary and mock remaining sections."""
+
+    processed = process_document_for_preview(file_path)
+    clean_text_for_groq = processed["clean_text"][:12000]
+    # Chunk-wise Groq processing will come later; this first MVP step sends a safe truncation.
+    overview = None
+    key_vocabulary = None
+    groq_sections_generated: list[str] = []
+
+    if use_groq:
+        overview = generate_overview_with_groq(
+            clean_text=clean_text_for_groq,
+            stats=processed["stats"],
+            source_language=source_language,
+            explanation_language=explanation_language,
+            learner_level=learner_level,
+        )
+        groq_sections_generated.append("Document Context Overview")
+
+        try:
+            key_vocabulary = generate_key_vocabulary_with_groq(
+                clean_text=clean_text_for_groq,
+                source_language=source_language,
+                explanation_language=explanation_language,
+                learner_level=learner_level,
+            )
+            groq_sections_generated.append("Key Vocabulary")
+        except ValueError:
+            key_vocabulary = None
+
+    guide = create_mock_learning_guide(
+        clean_text=processed["clean_text"],
+        stats=processed["stats"],
+        source_language=source_language,
+        explanation_language=explanation_language,
+        learner_level=learner_level,
+        overview=overview,
+        key_vocabulary=key_vocabulary,
+    )
+
+    suffix = "groq_sample_learning_guide" if use_groq else "sample_learning_guide"
+    output_path = Path(output_dir) / f"{Path(file_path).stem}_{suffix}.pdf"
+    pdf_path = build_learning_guide_pdf(guide, output_path)
+
+    return {
+        "guide": guide,
+        "pdf_path": pdf_path,
+        "stats": processed["stats"],
+        "chunks": processed["chunks"],
+        "groq_sections_generated": groq_sections_generated,
     }
 
 

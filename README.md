@@ -93,6 +93,13 @@ streamlit run streamlit_app.py
 
 ## Current Status
 
-Phase 1, Phase 2 document ingestion, and the first non-LLM PDF flow are implemented. The app supports document upload, TXT/PDF extraction, text cleaning, deterministic chunking, document statistics, mock `LearningGuide` generation, static PDF rendering, and Streamlit PDF download.
+Phase 1, Phase 2 document ingestion, the first non-LLM PDF flow, and the first Groq-powered content step are implemented. The app supports document upload, TXT/PDF extraction, text cleaning, deterministic chunking, document statistics, mock `LearningGuide` generation, static PDF rendering, and Streamlit PDF download.
 
-The generated guide currently uses deterministic mock content. The full Groq workflow is intentionally not implemented yet.
+The Groq client wrapper and prompt builders are available for the first two real sections: Document Context Overview and Key Vocabulary. Remaining sections still use deterministic mock content. Tests use mocked Groq responses and do not call the real API.
+
+To use Groq:
+
+1. Copy `.env.example` to `.env`.
+2. Add `GROQ_API_KEY`.
+3. Run Streamlit.
+4. Enable the Groq checkbox in the UI.

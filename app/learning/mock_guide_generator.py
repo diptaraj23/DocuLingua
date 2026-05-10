@@ -26,6 +26,8 @@ def create_mock_learning_guide(
     source_language: str = "French",
     explanation_language: str = "English",
     learner_level: str = "A2",
+    overview: DocumentOverview | None = None,
+    key_vocabulary: list[VocabularyItem] | None = None,
 ) -> LearningGuide:
     """Create a complete mock guide without calling an LLM provider."""
 
@@ -33,7 +35,7 @@ def create_mock_learning_guide(
     word_count = stats.get("word_count", 0)
     paragraph_count = stats.get("paragraph_count", 0)
 
-    key_vocabulary = [
+    mock_key_vocabulary = [
         VocabularyItem(
             term="la chanson",
             translation="the song",
@@ -214,7 +216,7 @@ def create_mock_learning_guide(
     )
 
     learning_statistics = LearningStatistics(
-        vocabulary_count=len(key_vocabulary),
+        vocabulary_count=len(key_vocabulary or mock_key_vocabulary),
         topic_specific_words=sum(len(group.items) for group in vocabulary_groups),
         important_verbs=len(important_verbs),
         useful_phrases=len(useful_phrases),
@@ -223,7 +225,7 @@ def create_mock_learning_guide(
         mini_lessons=len(mini_lessons),
     )
 
-    overview = DocumentOverview(
+    mock_overview = DocumentOverview(
         summary=(
             f"This sample guide treats the uploaded document as a short French text about {topic}. "
             f"The processed text contains about {word_count} words across {paragraph_count} paragraphs."
@@ -242,6 +244,8 @@ def create_mock_learning_guide(
             "Complete the practice exercises and check the answer key.",
         ],
     )
+    selected_overview = overview or mock_overview
+    selected_overview.learning_statistics = learning_statistics
 
     return LearningGuide(
         title="DocuLingua Sample French Learning Guide",
@@ -249,8 +253,8 @@ def create_mock_learning_guide(
         explanation_language=explanation_language,
         learner_level=learner_level,
         topic=topic,
-        overview=overview,
-        key_vocabulary=key_vocabulary,
+        overview=selected_overview,
+        key_vocabulary=key_vocabulary or mock_key_vocabulary,
         vocabulary_groups=vocabulary_groups,
         important_verbs=important_verbs,
         grammar_patterns=grammar_patterns,

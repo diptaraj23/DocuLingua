@@ -6,7 +6,7 @@ import streamlit as st
 
 from app.config import settings
 from app.core.document_loader import save_uploaded_file
-from app.core.pipeline import generate_mock_learning_guide_pdf, process_document_for_preview
+from app.core.pipeline import generate_partial_groq_learning_guide_pdf, process_document_for_preview
 from app.core.text_cleaner import is_text_too_short
 
 
@@ -95,12 +95,17 @@ if process_clicked and uploaded_file:
 st.divider()
 st.subheader("Sample PDF Guide")
 st.write(
-    "Generate a static mock PDF guide to test the full workbook flow. "
-    "This uses sample content only and does not call Groq yet."
+    "Generate a static PDF guide. Only the overview and key vocabulary can use Groq for now; "
+    "the remaining sections still use sample content."
 )
+use_groq = st.checkbox("Use Groq for overview and vocabulary", value=False)
+if use_groq:
+    st.info("Groq will generate only Document Context Overview and Key Vocabulary in this step.")
+    if not settings.groq_api_key:
+        st.warning("GROQ_API_KEY is missing. Add it to `.env` or disable Groq to use mock content.")
 
 generate_clicked = st.button(
-    "Generate Sample PDF Guide",
+    "Generate PDF Guide",
     disabled=st.session_state.saved_path is None,
 )
 
@@ -108,18 +113,22 @@ if generate_clicked and st.session_state.saved_path:
     output_dir = settings.project_root / "app" / "storage" / "outputs"
 
     try:
-        result = generate_mock_learning_guide_pdf(
+        result = generate_partial_groq_learning_guide_pdf(
             file_path=st.session_state.saved_path,
             source_language=source_language,
             explanation_language=explanation_language,
             learner_level=learner_level,
             output_dir=output_dir,
+            use_groq=use_groq,
         )
         guide = result["guide"]
         pdf_path = result["pdf_path"]
         learning_stats = guide.overview.learning_statistics
 
-        st.success("Sample PDF guide generated successfully.")
+        st.success("PDF guide generated successfully.")
+        st.write("Groq used: **" + ("yes" if use_groq else "no") + "**")
+        sections = result["groq_sections_generated"] or ["None; mock content used."]
+        st.write("Groq-generated sections: " + ", ".join(sections))
         stat_columns = st.columns(4)
         stat_columns[0].metric("Vocabulary", learning_stats.vocabulary_count)
         stat_columns[1].metric("Verbs", learning_stats.important_verbs)
@@ -128,12 +137,12 @@ if generate_clicked and st.session_state.saved_path:
 
         st.write(f"Output file: `{pdf_path.name}`")
         st.download_button(
-            "Download Sample PDF Guide",
+            "Download PDF Guide",
             data=pdf_path.read_bytes(),
             file_name=pdf_path.name,
             mime="application/pdf",
         )
     except Exception as error:
-        st.error(f"Could not generate sample PDF guide: {error}")
+        st.error(f"Could not generate PDF guide: {error}")
 
-st.caption("This MVP flow uses mock guide content. Groq integration comes later.")
+st.caption("This MVP flow is hybrid: Groq can power two sections while the rest remains mock content.")

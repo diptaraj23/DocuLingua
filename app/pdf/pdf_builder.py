@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from weasyprint import HTML
 
 from app.learning.content_schema import LearningGuide
 
@@ -16,6 +15,8 @@ STYLE_PATH = Path(__file__).parent / "styles" / "pdf.css"
 
 def render_learning_guide_pdf(guide: LearningGuide, output_path: str | Path) -> Path:
     """Render a LearningGuide object to a static PDF file."""
+
+    from weasyprint import HTML
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)

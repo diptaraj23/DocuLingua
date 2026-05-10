@@ -93,4 +93,6 @@ streamlit run streamlit_app.py
 
 ## Current Status
 
-Phase 1 is initialized. The repository contains a professional project structure, starter Streamlit UI, placeholder pipeline modules, Pydantic schemas, a PDF template, documentation, sample data, and minimal tests. The full Groq workflow and final PDF generation flow are intentionally not implemented yet.
+Phase 1 is initialized and Phase 2 document ingestion is now underway. The app supports local TXT loading, PDF loading with PyMuPDF, text cleaning, deterministic chunking, basic document statistics, and a Streamlit preview flow for uploaded documents.
+
+The full Groq workflow and final PDF generation flow are intentionally not implemented yet.

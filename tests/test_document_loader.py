@@ -1,22 +1,22 @@
 from pathlib import Path
 
-from app.core.document_loader import load_document, load_txt
+import pytest
+
+from app.core.document_loader import load_document, load_txt_file
 
 
-def test_load_txt_reads_file(tmp_path: Path) -> None:
-    sample = tmp_path / "sample.txt"
-    sample.write_text("Bonjour le monde", encoding="utf-8")
+def test_load_txt_reads_sample_document() -> None:
+    sample = Path("data/sample_documents/sample_french_text.txt")
 
-    assert load_txt(sample) == "Bonjour le monde"
+    text = load_txt_file(sample)
+
+    assert "La vieille chanson" in text
+    assert "Elise" in text
 
 
 def test_load_document_rejects_unsupported_extension(tmp_path: Path) -> None:
     sample = tmp_path / "sample.docx"
     sample.write_text("Bonjour", encoding="utf-8")
 
-    try:
+    with pytest.raises(ValueError, match="Unsupported document type"):
         load_document(sample)
-    except ValueError as error:
-        assert "Unsupported document type" in str(error)
-    else:
-        raise AssertionError("Expected ValueError for unsupported extension")

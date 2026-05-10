@@ -1,10 +1,12 @@
-from app.core.text_chunker import chunk_text
-from app.core.text_cleaner import clean_text
+from app.core.text_cleaner import clean_text, is_text_too_short
 
 
 def test_clean_text_normalizes_whitespace() -> None:
-    assert clean_text("  Bonjour   le monde\n\n\nSalut  ") == "Bonjour le monde\n\nSalut"
+    messy = "  Bonjour   le monde \r\n\r\n\r\n  J'aime   la musique.  "
+
+    assert clean_text(messy) == "Bonjour le monde\n\nJ'aime la musique."
 
 
-def test_chunk_text_splits_text() -> None:
-    assert chunk_text("abcdef", max_characters=2) == ["ab", "cd", "ef"]
+def test_is_text_too_short_detects_short_text() -> None:
+    assert is_text_too_short("Bonjour", min_chars=20)
+    assert not is_text_too_short("Bonjour le monde. " * 5, min_chars=20)

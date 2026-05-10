@@ -93,6 +93,6 @@ streamlit run streamlit_app.py
 
 ## Current Status
 
-Phase 1 is initialized and Phase 2 document ingestion is now underway. The app supports local TXT loading, PDF loading with PyMuPDF, text cleaning, deterministic chunking, basic document statistics, and a Streamlit preview flow for uploaded documents.
+Phase 1, Phase 2 document ingestion, and the first non-LLM PDF flow are implemented. The app supports document upload, TXT/PDF extraction, text cleaning, deterministic chunking, document statistics, mock `LearningGuide` generation, static PDF rendering, and Streamlit PDF download.
 
-The full Groq workflow and final PDF generation flow are intentionally not implemented yet.
+The generated guide currently uses deterministic mock content. The full Groq workflow is intentionally not implemented yet.

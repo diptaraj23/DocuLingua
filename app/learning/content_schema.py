@@ -5,20 +5,27 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class LearningStatistics(BaseModel):
+    """Counts shown in the guide overview."""
+
+    vocabulary_count: int = 0
+    topic_specific_words: int = 0
+    important_verbs: int = 0
+    useful_phrases: int = 0
+    grammar_concepts: int = 0
+    practice_exercises: int = 0
+    mini_lessons: int = 0
+
+
 class DocumentOverview(BaseModel):
     """High-level context for the uploaded document."""
 
     summary: str = ""
-    estimated_difficulty: str = ""
-    vocabulary_count: int = 0
-    verb_count: int = 0
-    grammar_concept_count: int = 0
-    phrase_count: int = 0
-    exercise_count: int = 0
-    mini_lesson_count: int = 0
-    main_learning_focus: str = ""
-    suggested_study_approach: str = ""
-    document_chunk_count: int = 0
+    estimated_level: str = "A2"
+    difficulty_notes: str = ""
+    learning_statistics: LearningStatistics = Field(default_factory=LearningStatistics)
+    main_learning_focus: list[str] = Field(default_factory=list)
+    suggested_study_approach: list[str] = Field(default_factory=list)
 
 
 class VocabularyItem(BaseModel):
@@ -69,6 +76,7 @@ class MiniLesson(BaseModel):
     title: str
     explanation: str = ""
     examples: list[str] = Field(default_factory=list)
+    practice_tip: str = ""
 
 
 class PracticeExercise(BaseModel):
@@ -94,6 +102,7 @@ class ReviewSheet(BaseModel):
     key_points: list[str] = Field(default_factory=list)
     vocabulary_to_review: list[str] = Field(default_factory=list)
     grammar_to_review: list[str] = Field(default_factory=list)
+    study_plan: list[str] = Field(default_factory=list)
 
 
 class LearningGuide(BaseModel):
@@ -102,7 +111,8 @@ class LearningGuide(BaseModel):
     title: str
     source_language: str = "French"
     explanation_language: str = "English"
-    learner_level: str = "Intermediate"
+    learner_level: str = "A2"
+    topic: str = ""
     overview: DocumentOverview = Field(default_factory=DocumentOverview)
     key_vocabulary: list[VocabularyItem] = Field(default_factory=list)
     vocabulary_groups: list[VocabularyGroup] = Field(default_factory=list)
@@ -113,3 +123,4 @@ class LearningGuide(BaseModel):
     practice_exercises: list[PracticeExercise] = Field(default_factory=list)
     reading_practice: ReadingPractice = Field(default_factory=ReadingPractice)
     review_sheet: ReviewSheet = Field(default_factory=ReviewSheet)
+    answer_key: list[str] = Field(default_factory=list)

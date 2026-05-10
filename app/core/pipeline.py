@@ -9,6 +9,8 @@ from app.core.text_chunker import chunk_text
 from app.core.text_cleaner import clean_text
 from app.core.text_stats import get_text_statistics
 from app.learning.content_schema import DocumentOverview, LearningGuide
+from app.learning.mock_guide_generator import create_mock_learning_guide
+from app.pdf.pdf_builder import build_learning_guide_pdf
 
 
 def process_document_for_preview(file_path: Path) -> dict:
@@ -24,6 +26,35 @@ def process_document_for_preview(file_path: Path) -> dict:
         "clean_text": cleaned_text,
         "chunks": chunks,
         "stats": stats,
+    }
+
+
+def generate_mock_learning_guide_pdf(
+    file_path: Path,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+    output_dir: Path,
+) -> dict:
+    """Create a mock LearningGuide and render it to a static PDF."""
+
+    processed = process_document_for_preview(file_path)
+    guide = create_mock_learning_guide(
+        clean_text=processed["clean_text"],
+        stats=processed["stats"],
+        source_language=source_language,
+        explanation_language=explanation_language,
+        learner_level=learner_level,
+    )
+
+    output_path = Path(output_dir) / f"{Path(file_path).stem}_sample_learning_guide.pdf"
+    pdf_path = build_learning_guide_pdf(guide, output_path)
+
+    return {
+        "guide": guide,
+        "pdf_path": pdf_path,
+        "stats": processed["stats"],
+        "chunks": processed["chunks"],
     }
 
 
@@ -50,9 +81,10 @@ def generate_learning_guide(
         learner_level=learner_level,
         overview=DocumentOverview(
             summary="Placeholder summary generated from the uploaded document.",
-            estimated_difficulty=learner_level,
-            main_learning_focus="Vocabulary, useful phrases, and grammar patterns.",
-            suggested_study_approach="Read the overview, study the vocabulary, then complete the exercises.",
-            document_chunk_count=len(chunks),
+            estimated_level=learner_level,
+            main_learning_focus=["Vocabulary, useful phrases, and grammar patterns."],
+            suggested_study_approach=[
+                "Read the overview, study the vocabulary, then complete the exercises."
+            ],
         ),
     )

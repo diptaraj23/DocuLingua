@@ -6,7 +6,7 @@ import streamlit as st
 
 from app.config import settings
 from app.core.document_loader import save_uploaded_file
-from app.core.pipeline import process_document_for_preview
+from app.core.pipeline import generate_mock_learning_guide_pdf, process_document_for_preview
 from app.core.text_cleaner import is_text_too_short
 
 
@@ -32,6 +32,11 @@ learner_level = st.selectbox(
 
 st.divider()
 
+if "saved_path" not in st.session_state:
+    st.session_state.saved_path = None
+if "processed" not in st.session_state:
+    st.session_state.processed = None
+
 if uploaded_file:
     st.info(f"Ready to process: {uploaded_file.name}")
     st.write(
@@ -49,6 +54,8 @@ if process_clicked and uploaded_file:
     try:
         saved_path = save_uploaded_file(uploaded_file, upload_dir)
         processed = process_document_for_preview(saved_path)
+        st.session_state.saved_path = saved_path
+        st.session_state.processed = processed
         stats = processed["stats"]
         chunks = processed["chunks"]
         cleaned_text = processed["clean_text"]
@@ -85,4 +92,48 @@ if process_clicked and uploaded_file:
     except Exception as error:
         st.error(f"Could not process document: {error}")
 
-st.caption("This step only preprocesses documents. It does not call Groq or generate a PDF yet.")
+st.divider()
+st.subheader("Sample PDF Guide")
+st.write(
+    "Generate a static mock PDF guide to test the full workbook flow. "
+    "This uses sample content only and does not call Groq yet."
+)
+
+generate_clicked = st.button(
+    "Generate Sample PDF Guide",
+    disabled=st.session_state.saved_path is None,
+)
+
+if generate_clicked and st.session_state.saved_path:
+    output_dir = settings.project_root / "app" / "storage" / "outputs"
+
+    try:
+        result = generate_mock_learning_guide_pdf(
+            file_path=st.session_state.saved_path,
+            source_language=source_language,
+            explanation_language=explanation_language,
+            learner_level=learner_level,
+            output_dir=output_dir,
+        )
+        guide = result["guide"]
+        pdf_path = result["pdf_path"]
+        learning_stats = guide.overview.learning_statistics
+
+        st.success("Sample PDF guide generated successfully.")
+        stat_columns = st.columns(4)
+        stat_columns[0].metric("Vocabulary", learning_stats.vocabulary_count)
+        stat_columns[1].metric("Verbs", learning_stats.important_verbs)
+        stat_columns[2].metric("Grammar", learning_stats.grammar_concepts)
+        stat_columns[3].metric("Exercises", learning_stats.practice_exercises)
+
+        st.write(f"Output file: `{pdf_path.name}`")
+        st.download_button(
+            "Download Sample PDF Guide",
+            data=pdf_path.read_bytes(),
+            file_name=pdf_path.name,
+            mime="application/pdf",
+        )
+    except Exception as error:
+        st.error(f"Could not generate sample PDF guide: {error}")
+
+st.caption("This MVP flow uses mock guide content. Groq integration comes later.")

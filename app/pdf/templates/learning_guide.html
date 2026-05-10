@@ -3,151 +3,235 @@
   <head>
     <meta charset="utf-8">
     <title>{{ guide.title }}</title>
-    <link rel="stylesheet" href="{{ css_path }}">
+    <style>{{ css }}</style>
   </head>
   <body>
-    <section class="cover">
-      <p class="eyebrow">DocuLingua</p>
-      <h1>{{ guide.title }}</h1>
-      <p>{{ guide.source_language }} to {{ guide.explanation_language }}</p>
-      <p>Learner level: {{ guide.learner_level }}</p>
-    </section>
+    <main>
+      <section class="cover">
+        <p class="eyebrow">DocuLingua Sample Guide</p>
+        <h1>{{ guide.title }}</h1>
+        <p class="subtitle">{{ guide.source_language }} to {{ guide.explanation_language }}</p>
+        <table class="meta-table">
+          <tbody>
+            <tr><th>Topic</th><td>{{ guide.topic }}</td></tr>
+            <tr><th>Learner level</th><td>{{ guide.learner_level }}</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Mock content for MVP testing. Groq integration will replace this sample content later.</p>
+      </section>
 
-    <section>
-      <h2>Document Context Overview</h2>
-      <p>{{ guide.overview.summary }}</p>
-      <dl>
-        <dt>Estimated difficulty</dt>
-        <dd>{{ guide.overview.estimated_difficulty }}</dd>
-        <dt>Main learning focus</dt>
-        <dd>{{ guide.overview.main_learning_focus }}</dd>
-        <dt>Suggested study approach</dt>
-        <dd>{{ guide.overview.suggested_study_approach }}</dd>
-      </dl>
-      <ul class="stats">
-        <li>Vocabulary words: {{ guide.overview.vocabulary_count }}</li>
-        <li>Verbs: {{ guide.overview.verb_count }}</li>
-        <li>Grammar concepts: {{ guide.overview.grammar_concept_count }}</li>
-        <li>Phrases: {{ guide.overview.phrase_count }}</li>
-        <li>Exercises: {{ guide.overview.exercise_count }}</li>
-        <li>Mini lessons: {{ guide.overview.mini_lesson_count }}</li>
-      </ul>
-    </section>
+      <section>
+        <h2>Document Context Overview</h2>
+        <p>{{ guide.overview.summary }}</p>
+        <table>
+          <tbody>
+            <tr><th>Estimated level</th><td>{{ guide.overview.estimated_level }}</td></tr>
+            <tr><th>Difficulty notes</th><td>{{ guide.overview.difficulty_notes }}</td></tr>
+          </tbody>
+        </table>
 
-    <section>
-      <h2>Key Vocabulary</h2>
-      {% for item in guide.key_vocabulary %}
-        <article>
-          <h3>{{ item.term }}{% if item.translation %} - {{ item.translation }}{% endif %}</h3>
-          <p>{{ item.example_sentence }}</p>
-          <p class="note">{{ item.note }}</p>
-        </article>
-      {% else %}
-        <p>Vocabulary items will appear here.</p>
-      {% endfor %}
-    </section>
+        <h3>Learning Statistics</h3>
+        <table>
+          <tbody>
+            <tr><th>Vocabulary words</th><td>{{ guide.overview.learning_statistics.vocabulary_count }}</td></tr>
+            <tr><th>Topic-specific words</th><td>{{ guide.overview.learning_statistics.topic_specific_words }}</td></tr>
+            <tr><th>Important verbs</th><td>{{ guide.overview.learning_statistics.important_verbs }}</td></tr>
+            <tr><th>Useful phrases</th><td>{{ guide.overview.learning_statistics.useful_phrases }}</td></tr>
+            <tr><th>Grammar concepts</th><td>{{ guide.overview.learning_statistics.grammar_concepts }}</td></tr>
+            <tr><th>Practice exercises</th><td>{{ guide.overview.learning_statistics.practice_exercises }}</td></tr>
+            <tr><th>Mini lessons</th><td>{{ guide.overview.learning_statistics.mini_lessons }}</td></tr>
+          </tbody>
+        </table>
 
-    <section>
-      <h2>Topic-Based Vocabulary Groups</h2>
-      {% for group in guide.vocabulary_groups %}
-        <h3>{{ group.topic }}</h3>
-        <ul>
-          {% for item in group.items %}
-            <li>{{ item.term }} - {{ item.translation }}</li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>Vocabulary groups will appear here.</p>
-      {% endfor %}
-    </section>
+        <div class="two-column">
+          <article>
+            <h3>Main Learning Focus</h3>
+            <ul>
+              {% for item in guide.overview.main_learning_focus %}
+                <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+          </article>
+          <article>
+            <h3>Suggested Study Approach</h3>
+            <ol>
+              {% for item in guide.overview.suggested_study_approach %}
+                <li>{{ item }}</li>
+              {% endfor %}
+            </ol>
+          </article>
+        </div>
+      </section>
 
-    <section>
-      <h2>Important Verbs</h2>
-      {% for verb in guide.important_verbs %}
-        <p><strong>{{ verb.infinitive }}</strong> - {{ verb.translation }}</p>
-      {% else %}
-        <p>Important verbs will appear here.</p>
-      {% endfor %}
-    </section>
-
-    <section>
-      <h2>Grammar Patterns</h2>
-      {% for pattern in guide.grammar_patterns %}
-        <article>
-          <h3>{{ pattern.name }}</h3>
-          <p>{{ pattern.explanation }}</p>
-        </article>
-      {% else %}
-        <p>Grammar patterns will appear here.</p>
-      {% endfor %}
-    </section>
-
-    <section>
-      <h2>Useful Phrases and Expressions</h2>
-      {% for phrase in guide.useful_phrases %}
-        <p><strong>{{ phrase.phrase }}</strong> - {{ phrase.translation }}</p>
-      {% else %}
-        <p>Useful phrases will appear here.</p>
-      {% endfor %}
-    </section>
-
-    <section>
-      <h2>Mini Language Lessons</h2>
-      {% for lesson in guide.mini_lessons %}
-        <article>
-          <h3>{{ lesson.title }}</h3>
-          <p>{{ lesson.explanation }}</p>
-        </article>
-      {% else %}
-        <p>Mini lessons will appear here.</p>
-      {% endfor %}
-    </section>
-
-    <section>
-      <h2>Practice Exercises</h2>
-      {% for exercise in guide.practice_exercises %}
-        <article>
-          <h3>{{ exercise.title }}</h3>
-          <p>{{ exercise.instructions }}</p>
-          <ol>
-            {% for question in exercise.questions %}
-              <li>{{ question }}</li>
+      <section>
+        <h2>Key Vocabulary</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>French</th>
+              <th>English</th>
+              <th>Part of speech</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in guide.key_vocabulary %}
+              <tr>
+                <td>{{ item.term }}</td>
+                <td>{{ item.translation }}</td>
+                <td>{{ item.part_of_speech }}</td>
+                <td>{{ item.example_sentence }}</td>
+              </tr>
             {% endfor %}
-          </ol>
-        </article>
-      {% else %}
-        <p>Practice exercises will appear here.</p>
-      {% endfor %}
-    </section>
+          </tbody>
+        </table>
+      </section>
 
-    <section>
-      <h2>Short Reading Practice</h2>
-      <p>{{ guide.reading_practice.passage or "A reading passage will appear here." }}</p>
-    </section>
-
-    <section>
-      <h2>Review Sheet</h2>
-      <ul>
-        {% for point in guide.review_sheet.key_points %}
-          <li>{{ point }}</li>
-        {% else %}
-          <li>Review points will appear here.</li>
+      <section>
+        <h2>Topic-Based Vocabulary Groups</h2>
+        {% for group in guide.vocabulary_groups %}
+          <h3>{{ group.topic }}</h3>
+          <table>
+            <tbody>
+              {% for item in group.items %}
+                <tr><th>{{ item.term }}</th><td>{{ item.translation }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
         {% endfor %}
-      </ul>
-    </section>
+      </section>
 
-    <section>
-      <h2>Answer Key</h2>
-      {% for exercise in guide.practice_exercises %}
-        <h3>{{ exercise.title }}</h3>
+      <section>
+        <h2>Important Verbs</h2>
+        <table>
+          <thead>
+            <tr><th>Infinitive</th><th>English</th><th>Form note</th><th>Example</th></tr>
+          </thead>
+          <tbody>
+            {% for verb in guide.important_verbs %}
+              <tr>
+                <td>{{ verb.infinitive }}</td>
+                <td>{{ verb.translation }}</td>
+                <td>{{ verb.tense_or_form }}</td>
+                <td>{{ verb.example_sentence }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Grammar Patterns</h2>
+        {% for pattern in guide.grammar_patterns %}
+          <article class="block">
+            <h3>{{ pattern.name }}</h3>
+            <p>{{ pattern.explanation }}</p>
+            <ul>
+              {% for example in pattern.examples %}
+                <li>{{ example }}</li>
+              {% endfor %}
+            </ul>
+          </article>
+        {% endfor %}
+      </section>
+
+      <section>
+        <h2>Useful Phrases and Expressions</h2>
+        <table>
+          <thead>
+            <tr><th>Phrase</th><th>Meaning</th><th>Usage note</th></tr>
+          </thead>
+          <tbody>
+            {% for phrase in guide.useful_phrases %}
+              <tr>
+                <td>{{ phrase.phrase }}</td>
+                <td>{{ phrase.translation }}</td>
+                <td>{{ phrase.usage_note }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Mini Language Lessons</h2>
+        {% for lesson in guide.mini_lessons %}
+          <article class="block">
+            <h3>{{ lesson.title }}</h3>
+            <p>{{ lesson.explanation }}</p>
+            <ul>
+              {% for example in lesson.examples %}
+                <li>{{ example }}</li>
+              {% endfor %}
+            </ul>
+            <p class="note">{{ lesson.practice_tip }}</p>
+          </article>
+        {% endfor %}
+      </section>
+
+      <section>
+        <h2>Practice Exercises</h2>
+        {% for exercise in guide.practice_exercises %}
+          <article class="block">
+            <h3>{{ exercise.title }}</h3>
+            <p>{{ exercise.instructions }}</p>
+            <ol>
+              {% for question in exercise.questions %}
+                <li>{{ question }}</li>
+              {% endfor %}
+            </ol>
+          </article>
+        {% endfor %}
+      </section>
+
+      <section>
+        <h2>Short Reading Practice</h2>
+        <p>{{ guide.reading_practice.passage }}</p>
+        <h3>Questions</h3>
         <ol>
-          {% for answer in exercise.answers %}
-            <li>{{ answer }}</li>
+          {% for question in guide.reading_practice.questions %}
+            <li>{{ question }}</li>
           {% endfor %}
         </ol>
-      {% else %}
-        <p>Answers will appear here.</p>
-      {% endfor %}
-    </section>
+      </section>
+
+      <section>
+        <h2>Review Sheet</h2>
+        <div class="two-column">
+          <article>
+            <h3>Key Points</h3>
+            <ul>
+              {% for point in guide.review_sheet.key_points %}
+                <li>{{ point }}</li>
+              {% endfor %}
+            </ul>
+          </article>
+          <article>
+            <h3>Study Plan</h3>
+            <ol>
+              {% for step in guide.review_sheet.study_plan %}
+                <li>{{ step }}</li>
+              {% endfor %}
+            </ol>
+          </article>
+        </div>
+        <h3>Vocabulary to Review</h3>
+        <p>{{ guide.review_sheet.vocabulary_to_review | join(", ") }}</p>
+        <h3>Grammar to Review</h3>
+        <p>{{ guide.review_sheet.grammar_to_review | join(", ") }}</p>
+      </section>
+
+      <section>
+        <h2>Answer Key</h2>
+        <ol>
+          {% for answer in guide.answer_key %}
+            <li>{{ answer }}</li>
+          {% endfor %}
+          {% for answer in guide.reading_practice.answers %}
+            <li>Reading Practice: {{ answer }}</li>
+          {% endfor %}
+        </ol>
+      </section>
+    </main>
   </body>
 </html>

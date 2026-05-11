@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from app.core.document_loader import load_document
+from app.core.progress_tracker import ProgressTracker
 from app.core.text_chunker import chunk_text
 from app.core.text_cleaner import clean_text
 from app.core.text_stats import get_text_statistics
@@ -31,6 +33,24 @@ MAX_LLM_INPUT_CHARS = 12000
 MAX_GROQ_INPUT_CHARS = MAX_LLM_INPUT_CHARS
 logger = get_logger(__name__)
 
+PIPELINE_STEP_NAMES = [
+    "Extract document text",
+    "Clean text",
+    "Chunk text",
+    "Calculate document statistics",
+    "Generate document overview",
+    "Generate key vocabulary",
+    "Generate important verbs",
+    "Generate grammar patterns",
+    "Generate useful phrases",
+    "Generate mini lessons",
+    "Generate practice exercises",
+    "Generate reading practice",
+    "Generate review sheet",
+    "Generate answer key",
+    "Render PDF",
+]
+
 
 def process_document_for_preview(file_path: Path) -> dict:
     """Load, clean, chunk, and summarize a document for Streamlit preview."""
@@ -39,6 +59,56 @@ def process_document_for_preview(file_path: Path) -> dict:
     cleaned_text = clean_text(raw_text)
     chunks = chunk_text(cleaned_text)
     stats = get_text_statistics(cleaned_text)
+
+    return {
+        "raw_text": raw_text,
+        "clean_text": cleaned_text,
+        "chunks": chunks,
+        "stats": stats,
+    }
+
+
+def _process_document_with_progress(
+    file_path: Path,
+    progress_tracker: ProgressTracker,
+    progress_callback: Callable[[ProgressTracker], None] | None = None,
+) -> dict:
+    """Load, clean, chunk, and summarize a document while updating progress."""
+
+    def notify() -> None:
+        if progress_callback:
+            progress_callback(progress_tracker)
+
+    extraction_model = "PyMuPDF" if Path(file_path).suffix.lower() == ".pdf" else "TXT Reader"
+
+    progress_tracker.start_step("Extract document text")
+    notify()
+    try:
+        raw_text = load_document(Path(file_path))
+        progress_tracker.complete_step("Extract document text", provider="Local", model=extraction_model)
+        notify()
+    except Exception as error:
+        progress_tracker.fail_step("Extract document text", str(error))
+        notify()
+        raise
+
+    progress_tracker.start_step("Clean text")
+    notify()
+    cleaned_text = clean_text(raw_text)
+    progress_tracker.complete_step("Clean text", provider="Local", model="Python")
+    notify()
+
+    progress_tracker.start_step("Chunk text")
+    notify()
+    chunks = chunk_text(cleaned_text)
+    progress_tracker.complete_step("Chunk text", provider="Local", model="Python")
+    notify()
+
+    progress_tracker.start_step("Calculate document statistics")
+    notify()
+    stats = get_text_statistics(cleaned_text)
+    progress_tracker.complete_step("Calculate document statistics", provider="Local", model="Python")
+    notify()
 
     return {
         "raw_text": raw_text,
@@ -57,7 +127,8 @@ def generate_mock_learning_guide_pdf(
 ) -> dict:
     """Create a mock LearningGuide and render it to a static PDF."""
 
-    processed = process_document_for_preview(file_path)
+    tracker = ProgressTracker(PIPELINE_STEP_NAMES)
+    processed = _process_document_with_progress(file_path, tracker)
     guide = create_mock_learning_guide(
         clean_text=processed["clean_text"],
         stats=processed["stats"],
@@ -67,13 +138,18 @@ def generate_mock_learning_guide_pdf(
     )
 
     output_path = Path(output_dir) / f"{Path(file_path).stem}_sample_learning_guide.pdf"
+    tracker.start_step("Render PDF")
     pdf_path = build_learning_guide_pdf(guide, output_path)
+    tracker.complete_step("Render PDF", provider="Local", model="WeasyPrint/PyMuPDF")
+    total_duration = sum(row["duration_seconds"] or 0 for row in tracker.get_display_rows())
 
     return {
         "guide": guide,
         "pdf_path": pdf_path,
         "stats": processed["stats"],
         "chunks": processed["chunks"],
+        "process_steps": tracker.get_display_rows(),
+        "total_duration_seconds": round(total_duration, 2),
     }
 
 
@@ -85,6 +161,8 @@ def generate_partial_groq_learning_guide_pdf(
     output_dir: Path,
     use_groq: bool = True,
     fallback_to_mock_on_section_error: bool = True,
+    progress_tracker: ProgressTracker | None = None,
+    progress_callback: Callable[[ProgressTracker], None] | None = None,
 ) -> dict:
     """Backward-compatible wrapper for the provider-agnostic LLM pipeline."""
 
@@ -96,6 +174,8 @@ def generate_partial_groq_learning_guide_pdf(
         output_dir=output_dir,
         use_llm=use_groq,
         fallback_to_mock_on_section_error=fallback_to_mock_on_section_error,
+        progress_tracker=progress_tracker,
+        progress_callback=progress_callback,
     )
 
 
@@ -108,10 +188,18 @@ def generate_llm_learning_guide_pdf(
     use_llm: bool = True,
     fallback_to_mock_on_section_error: bool = True,
     provider_router: ProviderRouter | None = None,
+    progress_tracker: ProgressTracker | None = None,
+    progress_callback: Callable[[ProgressTracker], None] | None = None,
 ) -> dict:
     """Generate a PDF using configured LLM providers with section-level fallback."""
 
-    processed = process_document_for_preview(file_path)
+    tracker = progress_tracker or ProgressTracker(PIPELINE_STEP_NAMES)
+
+    def notify() -> None:
+        if progress_callback:
+            progress_callback(tracker)
+
+    processed = _process_document_with_progress(file_path, tracker, progress_callback)
     clean_text_for_llm = processed["clean_text"][:MAX_LLM_INPUT_CHARS]
     # Future work can process larger documents chunk-by-chunk; this MVP sends a safe truncation.
     overview = None
@@ -130,7 +218,9 @@ def generate_llm_learning_guide_pdf(
     section_metadata: list[SectionGenerationMetadata] = []
     router = provider_router or ProviderRouter()
 
-    def run_section(section_name: str, generator):
+    def run_section(section_name: str, step_name: str, generator):
+        tracker.start_step(step_name)
+        notify()
         try:
             value, metadata = generator()
         except Exception as error:
@@ -139,15 +229,28 @@ def generate_llm_learning_guide_pdf(
             if fallback_to_mock_on_section_error:
                 used_mock_fallback_sections.append(section_name)
                 section_metadata.append(SectionGenerationMetadata(section_name=section_name))
+                tracker.mark_fallback(step_name, str(error))
+                notify()
                 return None
+            tracker.fail_step(step_name, str(error))
+            notify()
             raise ValueError(f"LLM section generation failed for {section_name}: {error}") from error
         section_metadata.append(metadata)
         llm_sections_generated.append(section_name)
+        tracker.complete_step(step_name, provider=metadata.provider, model=metadata.model)
+        notify()
         return value
+
+    def complete_mock_step(step_name: str) -> None:
+        tracker.start_step(step_name)
+        notify()
+        tracker.complete_step(step_name, provider="Mock", model="Local sample content")
+        notify()
 
     if use_llm:
         overview = run_section(
             "Document Context Overview",
+            "Generate document overview",
             lambda: generate_overview_with_llm(
                 clean_text=clean_text_for_llm,
                 stats=processed["stats"],
@@ -159,6 +262,7 @@ def generate_llm_learning_guide_pdf(
         )
         key_vocabulary = run_section(
             "Key Vocabulary",
+            "Generate key vocabulary",
             lambda: generate_key_vocabulary_with_llm(
                 clean_text=clean_text_for_llm,
                 source_language=source_language,
@@ -169,6 +273,7 @@ def generate_llm_learning_guide_pdf(
         )
         important_verbs = run_section(
             "Important Verbs",
+            "Generate important verbs",
             lambda: generate_important_verbs_with_llm(
                 clean_text=clean_text_for_llm,
                 source_language=source_language,
@@ -179,6 +284,7 @@ def generate_llm_learning_guide_pdf(
         )
         grammar_patterns = run_section(
             "Grammar Patterns",
+            "Generate grammar patterns",
             lambda: generate_grammar_patterns_with_llm(
                 clean_text=clean_text_for_llm,
                 source_language=source_language,
@@ -189,6 +295,7 @@ def generate_llm_learning_guide_pdf(
         )
         useful_phrases = run_section(
             "Useful Phrases and Expressions",
+            "Generate useful phrases",
             lambda: generate_useful_phrases_with_llm(
                 clean_text=clean_text_for_llm,
                 source_language=source_language,
@@ -199,6 +306,7 @@ def generate_llm_learning_guide_pdf(
         )
         mini_lessons = run_section(
             "Mini Language Lessons",
+            "Generate mini lessons",
             lambda: generate_mini_lessons_with_llm(
                 clean_text=clean_text_for_llm,
                 source_language=source_language,
@@ -209,6 +317,7 @@ def generate_llm_learning_guide_pdf(
         )
         practice_exercises = run_section(
             "Practice Exercises",
+            "Generate practice exercises",
             lambda: generate_practice_exercises_with_llm(
                 clean_text=clean_text_for_llm,
                 source_language=source_language,
@@ -219,6 +328,7 @@ def generate_llm_learning_guide_pdf(
         )
         reading_practice = run_section(
             "Short Reading Practice",
+            "Generate reading practice",
             lambda: generate_reading_practice_with_llm(
                 clean_text=clean_text_for_llm,
                 source_language=source_language,
@@ -229,6 +339,7 @@ def generate_llm_learning_guide_pdf(
         )
         review_sheet = run_section(
             "Review Sheet",
+            "Generate review sheet",
             lambda: generate_review_sheet_with_llm(
                 clean_text=clean_text_for_llm,
                 source_language=source_language,
@@ -240,6 +351,7 @@ def generate_llm_learning_guide_pdf(
         if practice_exercises is not None and reading_practice is not None:
             answer_key = run_section(
                 "Answer Key",
+                "Generate answer key",
                 lambda: generate_answer_key_with_llm(
                     exercises=practice_exercises,
                     reading_practice=reading_practice,
@@ -252,8 +364,26 @@ def generate_llm_learning_guide_pdf(
             failed_llm_sections.append("Answer Key")
             used_mock_fallback_sections.append("Answer Key")
             section_metadata.append(SectionGenerationMetadata(section_name="Answer Key"))
+            tracker.mark_fallback("Generate answer key", "Required prior sections failed.")
+            notify()
         else:
+            tracker.fail_step("Generate answer key", "Required prior sections failed.")
+            notify()
             raise ValueError("LLM section generation failed for Answer Key: required prior sections failed.")
+    else:
+        for step_name in [
+            "Generate document overview",
+            "Generate key vocabulary",
+            "Generate important verbs",
+            "Generate grammar patterns",
+            "Generate useful phrases",
+            "Generate mini lessons",
+            "Generate practice exercises",
+            "Generate reading practice",
+            "Generate review sheet",
+            "Generate answer key",
+        ]:
+            complete_mock_step(step_name)
 
     guide = create_mock_learning_guide(
         clean_text=processed["clean_text"],
@@ -276,7 +406,21 @@ def generate_llm_learning_guide_pdf(
 
     suffix = "llm_learning_guide" if use_llm else "sample_learning_guide"
     output_path = Path(output_dir) / f"{Path(file_path).stem}_{suffix}.pdf"
-    pdf_path = build_learning_guide_pdf(guide, output_path)
+    tracker.start_step("Render PDF")
+    notify()
+    try:
+        pdf_path = build_learning_guide_pdf(guide, output_path)
+        tracker.complete_step("Render PDF", provider="Local", model="WeasyPrint/PyMuPDF")
+        notify()
+    except Exception as error:
+        tracker.fail_step("Render PDF", str(error))
+        notify()
+        raise
+    total_duration = sum(
+        row["duration_seconds"] or 0
+        for row in tracker.get_display_rows()
+        if row["status"] in {"completed", "failed", "fallback"}
+    )
 
     return {
         "guide": guide,
@@ -286,6 +430,8 @@ def generate_llm_learning_guide_pdf(
         "llm_sections_generated": llm_sections_generated,
         "failed_llm_sections": failed_llm_sections,
         "generation_metadata": guide.generation_metadata,
+        "process_steps": tracker.get_display_rows(),
+        "total_duration_seconds": round(total_duration, 2),
         "groq_sections_generated": llm_sections_generated,
         "failed_groq_sections": failed_llm_sections,
         "used_mock_fallback_sections": used_mock_fallback_sections,

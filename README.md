@@ -117,6 +117,8 @@ The LLM provider layer now covers the full generated learning guide: overview, v
 
 The provider router records which provider and model generated each section. Generation metadata appears in Streamlit and in the generated PDF. The pipeline includes safer JSON parsing, JSON extraction from messy responses, retry on invalid JSON, section-level mock fallback, Streamlit warnings for failed sections, and basic logging for debugging.
 
+The Streamlit generation flow also shows real-time progress: an overall progress bar, checklist-style process table, status icons, per-step duration, and provider/model labels for LLM-generated sections.
+
 Tests use mocked provider responses and do not call real APIs.
 
 To use LLM generation:

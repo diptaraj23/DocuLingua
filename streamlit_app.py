@@ -118,6 +118,16 @@ generate_clicked = st.button(
 
 if generate_clicked and st.session_state.saved_path:
     output_dir = settings.project_root / "app" / "storage" / "outputs"
+    progress_placeholder = st.empty()
+    status_placeholder = st.empty()
+    table_placeholder = st.empty()
+
+    def update_progress_ui(tracker):
+        progress_placeholder.progress(tracker.get_progress_fraction())
+        status_placeholder.write(
+            f"Completed {tracker.get_completed_count()} of {tracker.get_total_count()} steps."
+        )
+        table_placeholder.dataframe(tracker.get_display_rows(), use_container_width=True)
 
     try:
         if use_llm and not any(
@@ -137,12 +147,16 @@ if generate_clicked and st.session_state.saved_path:
             output_dir=output_dir,
             use_llm=use_llm,
             fallback_to_mock_on_section_error=fallback_to_mock,
+            progress_callback=update_progress_ui,
         )
         guide = result["guide"]
         pdf_path = result["pdf_path"]
         learning_stats = guide.overview.learning_statistics
 
         st.success("PDF guide generated successfully.")
+        progress_placeholder.progress(1.0)
+        table_placeholder.dataframe(result["process_steps"], use_container_width=True)
+        st.write(f"Total processing time: **{result['total_duration_seconds']} seconds**")
         st.write("LLM providers used: **" + ("yes" if use_llm else "no") + "**")
         sections = result["llm_sections_generated"] or ["None; mock content used."]
         st.write("LLM-generated sections: " + ", ".join(sections))

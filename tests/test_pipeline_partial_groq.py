@@ -20,6 +20,8 @@ def test_partial_groq_pipeline_without_groq_creates_pdf(tmp_path: Path) -> None:
     assert result["groq_sections_generated"] == []
     assert result["failed_groq_sections"] == []
     assert result["used_mock_fallback_sections"] == []
+    assert result["process_steps"]
+    assert result["total_duration_seconds"] >= 0
 
 
 def test_partial_groq_pipeline_returns_compatibility_keys(tmp_path: Path) -> None:
@@ -35,6 +37,8 @@ def test_partial_groq_pipeline_returns_compatibility_keys(tmp_path: Path) -> Non
     assert "groq_sections_generated" in result
     assert "llm_sections_generated" in result
     assert "generation_metadata" in result
+    assert "process_steps" in result
+    assert "total_duration_seconds" in result
 
 
 class FakeRouter:
@@ -88,6 +92,7 @@ def test_partial_groq_pipeline_with_fake_router_creates_pdf(monkeypatch, tmp_pat
         "Answer Key",
     ]
     assert result["guide"].generation_metadata.sections[0].provider == "groq"
+    assert any(row["status"] == "completed" for row in result["process_steps"])
 
 
 def test_partial_groq_pipeline_falls_back_when_section_fails(monkeypatch, tmp_path: Path) -> None:

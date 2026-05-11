@@ -3,17 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.core.pipeline import generate_partial_groq_learning_guide_pdf
-from app.learning.content_schema import (
-    DocumentOverview,
-    GrammarPattern,
-    MiniLesson,
-    PracticeExercise,
-    ReadingPractice,
-    ReviewSheet,
-    UsefulPhrase,
-    VerbItem,
-    VocabularyItem,
-)
+from app.llm.providers.metadata import GenerationAttempt, SectionGenerationMetadata
 
 
 def test_partial_groq_pipeline_without_groq_creates_pdf(tmp_path: Path) -> None:
@@ -28,9 +18,11 @@ def test_partial_groq_pipeline_without_groq_creates_pdf(tmp_path: Path) -> None:
 
     assert result["pdf_path"].exists()
     assert result["groq_sections_generated"] == []
+    assert result["failed_groq_sections"] == []
+    assert result["used_mock_fallback_sections"] == []
 
 
-def test_partial_groq_pipeline_returns_groq_sections_key(tmp_path: Path) -> None:
+def test_partial_groq_pipeline_returns_compatibility_keys(tmp_path: Path) -> None:
     result = generate_partial_groq_learning_guide_pdf(
         file_path=Path("data/sample_documents/sample_french_text.txt"),
         source_language="French",
@@ -41,62 +33,37 @@ def test_partial_groq_pipeline_returns_groq_sections_key(tmp_path: Path) -> None
     )
 
     assert "groq_sections_generated" in result
+    assert "llm_sections_generated" in result
+    assert "generation_metadata" in result
 
 
-def test_partial_groq_pipeline_with_monkeypatched_groq_creates_pdf(monkeypatch, tmp_path: Path) -> None:
-    def fake_overview(**kwargs) -> DocumentOverview:
-        return DocumentOverview(
-            summary="Generated overview.",
-            estimated_level="A2",
-            difficulty_notes="Friendly test content.",
-            main_learning_focus=["vocabulary"],
-            suggested_study_approach=["read and review"],
+class FakeRouter:
+    def __init__(self, fail_sections: set[str] | None = None) -> None:
+        self.fail_sections = fail_sections or set()
+
+    def generate_validated_json_with_fallback(self, prompt, section_name, validator, **kwargs):
+        if section_name in self.fail_sections:
+            raise ValueError(f"{section_name} failed")
+        payload = _payload_for(section_name)
+        metadata = SectionGenerationMetadata(
+            section_name=section_name,
+            provider="groq",
+            model="test-model",
+            success=True,
+            attempts=[
+                GenerationAttempt(
+                    provider="groq",
+                    model="test-model",
+                    section_name=section_name,
+                    success=True,
+                )
+            ],
         )
+        return validator(payload), metadata
 
-    def fake_vocabulary(**kwargs) -> list[VocabularyItem]:
-        return [
-            VocabularyItem(
-                term="la musique",
-                translation="music",
-                part_of_speech="noun",
-                note="Useful topic word.",
-            )
-        ]
 
-    def fake_verbs(**kwargs) -> list[VerbItem]:
-        return [VerbItem(infinitive="jouer", translation="to play")]
-
-    def fake_grammar(**kwargs) -> list[GrammarPattern]:
-        return [GrammarPattern(name="Test grammar", explanation="A useful pattern.")]
-
-    def fake_phrases(**kwargs) -> list[UsefulPhrase]:
-        return [UsefulPhrase(phrase="test phrase", translation="test meaning")]
-
-    def fake_lessons(**kwargs) -> list[MiniLesson]:
-        return [MiniLesson(title="Test lesson", explanation="A short lesson.")]
-
-    def fake_exercises(**kwargs) -> list[PracticeExercise]:
-        return [PracticeExercise(title="Exercise", questions=["Q"], answers=["A"])]
-
-    def fake_reading(**kwargs) -> ReadingPractice:
-        return ReadingPractice(passage="Je joue.", questions=["Q"], answers=["A"])
-
-    def fake_review(**kwargs) -> ReviewSheet:
-        return ReviewSheet(key_points=["Review"], vocabulary_to_review=["musique"])
-
-    def fake_answer_key(**kwargs) -> list[str]:
-        return ["1. A"]
-
-    monkeypatch.setattr("app.core.pipeline.generate_overview_with_groq", fake_overview)
-    monkeypatch.setattr("app.core.pipeline.generate_key_vocabulary_with_groq", fake_vocabulary)
-    monkeypatch.setattr("app.core.pipeline.generate_important_verbs_with_groq", fake_verbs)
-    monkeypatch.setattr("app.core.pipeline.generate_grammar_patterns_with_groq", fake_grammar)
-    monkeypatch.setattr("app.core.pipeline.generate_useful_phrases_with_groq", fake_phrases)
-    monkeypatch.setattr("app.core.pipeline.generate_mini_lessons_with_groq", fake_lessons)
-    monkeypatch.setattr("app.core.pipeline.generate_practice_exercises_with_groq", fake_exercises)
-    monkeypatch.setattr("app.core.pipeline.generate_reading_practice_with_groq", fake_reading)
-    monkeypatch.setattr("app.core.pipeline.generate_review_sheet_with_groq", fake_review)
-    monkeypatch.setattr("app.core.pipeline.generate_answer_key_with_groq", fake_answer_key)
+def test_partial_groq_pipeline_with_fake_router_creates_pdf(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("app.core.pipeline.ProviderRouter", lambda: FakeRouter())
 
     result = generate_partial_groq_learning_guide_pdf(
         file_path=Path("data/sample_documents/sample_french_text.txt"),
@@ -120,19 +87,30 @@ def test_partial_groq_pipeline_with_monkeypatched_groq_creates_pdf(monkeypatch, 
         "Review Sheet",
         "Answer Key",
     ]
+    assert result["guide"].generation_metadata.sections[0].provider == "groq"
 
 
-def test_partial_groq_pipeline_raises_when_a_groq_section_fails(monkeypatch, tmp_path: Path) -> None:
-    def fake_overview(**kwargs) -> DocumentOverview:
-        return DocumentOverview(summary="Generated overview.")
+def test_partial_groq_pipeline_falls_back_when_section_fails(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("app.core.pipeline.ProviderRouter", lambda: FakeRouter({"Key Vocabulary"}))
 
-    def fake_vocabulary(**kwargs) -> list[VocabularyItem]:
-        raise ValueError("No usable vocabulary")
+    result = generate_partial_groq_learning_guide_pdf(
+        file_path=Path("data/sample_documents/sample_french_text.txt"),
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        output_dir=tmp_path,
+        use_groq=True,
+    )
 
-    monkeypatch.setattr("app.core.pipeline.generate_overview_with_groq", fake_overview)
-    monkeypatch.setattr("app.core.pipeline.generate_key_vocabulary_with_groq", fake_vocabulary)
+    assert result["pdf_path"].exists()
+    assert "Key Vocabulary" in result["failed_groq_sections"]
+    assert "Key Vocabulary" in result["used_mock_fallback_sections"]
 
-    with pytest.raises(ValueError, match="Groq section generation failed"):
+
+def test_partial_groq_pipeline_raises_when_fallback_disabled(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("app.core.pipeline.ProviderRouter", lambda: FakeRouter({"Key Vocabulary"}))
+
+    with pytest.raises(ValueError, match="Key Vocabulary"):
         generate_partial_groq_learning_guide_pdf(
             file_path=Path("data/sample_documents/sample_french_text.txt"),
             source_language="French",
@@ -140,4 +118,82 @@ def test_partial_groq_pipeline_raises_when_a_groq_section_fails(monkeypatch, tmp
             learner_level="A2",
             output_dir=tmp_path,
             use_groq=True,
+            fallback_to_mock_on_section_error=False,
         )
+
+
+def _payload_for(section_name: str) -> dict:
+    payloads = {
+        "Document Context Overview": {
+            "summary": "Generated overview.",
+            "estimated_level": "A2",
+            "difficulty_notes": "Friendly test content.",
+            "main_learning_focus": ["vocabulary"],
+            "suggested_study_approach": ["read and review"],
+        },
+        "Key Vocabulary": {
+            "key_vocabulary": [
+                {
+                    "word": "la musique",
+                    "meaning": "music",
+                    "part_of_speech": "noun",
+                    "why_useful": "Useful topic word.",
+                }
+            ]
+        },
+        "Important Verbs": {
+            "important_verbs": [
+                {"verb": "jouer", "meaning": "to play", "common_form": "joue", "learning_note": "Useful."}
+            ]
+        },
+        "Grammar Patterns": {
+            "grammar_patterns": [
+                {
+                    "title": "Present tense",
+                    "explanation": "Used for facts.",
+                    "examples": ["Le rythme organise la musique."],
+                    "learning_note": "Useful.",
+                }
+            ]
+        },
+        "Useful Phrases and Expressions": {
+            "useful_phrases": [
+                {"phrase": "par exemple", "meaning": "for example", "usage_note": "Useful for explanations."}
+            ]
+        },
+        "Mini Language Lessons": {
+            "mini_lessons": [
+                {
+                    "title": "Explain a concept",
+                    "objective": "Define a term.",
+                    "explanation": "Use simple present tense.",
+                    "examples": ["Le rythme est important."],
+                }
+            ]
+        },
+        "Practice Exercises": {
+            "practice_exercises": [
+                {"instruction": "Fill the blank.", "question": "Je ___ la musique.", "answer": "joue"}
+            ]
+        },
+        "Short Reading Practice": {
+            "reading_practice": {
+                "title": "Music",
+                "passage": "Je joue de la musique.",
+                "vocabulary_help": ["jouer = to play"],
+                "questions": ["Que fait la personne?"],
+                "answers": ["Elle joue de la musique."],
+            }
+        },
+        "Review Sheet": {
+            "review_sheet": {
+                "top_vocabulary": ["musique"],
+                "top_verbs": ["jouer"],
+                "top_phrases": ["par exemple"],
+                "grammar_points": ["present tense"],
+                "study_tips": ["Review aloud"],
+            }
+        },
+        "Answer Key": {"answer_key": ["1. joue"]},
+    }
+    return payloads[section_name]

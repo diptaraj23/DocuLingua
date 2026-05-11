@@ -32,6 +32,177 @@ from app.learning.content_schema import (
 )
 
 
+def _string_array_schema() -> dict[str, Any]:
+    """Return the JSON Schema fragment for a list of strings."""
+
+    return {"type": "array", "items": {"type": "string"}}
+
+
+def _object_schema(
+    properties: dict[str, Any],
+    required: list[str] | None = None,
+) -> dict[str, Any]:
+    """Return a strict object schema compatible with Groq Structured Outputs."""
+
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": required or list(properties),
+        "additionalProperties": False,
+    }
+
+
+def _array_section_schema(section_key: str, item_properties: dict[str, Any]) -> dict[str, Any]:
+    """Return a strict top-level schema for a section list."""
+
+    return _object_schema(
+        {
+            section_key: {
+                "type": "array",
+                "items": _object_schema(item_properties),
+            }
+        }
+    )
+
+
+def _document_overview_schema() -> dict[str, Any]:
+    """Schema for Groq-generated document overview output."""
+
+    return _object_schema(
+        {
+            "summary": {"type": "string"},
+            "estimated_level": {"type": "string"},
+            "difficulty_notes": {"type": "string"},
+            "main_learning_focus": _string_array_schema(),
+            "suggested_study_approach": _string_array_schema(),
+        }
+    )
+
+
+def _key_vocabulary_schema() -> dict[str, Any]:
+    """Schema for Groq-generated vocabulary output."""
+
+    return _array_section_schema(
+        "key_vocabulary",
+        {
+            "word": {"type": "string"},
+            "meaning": {"type": "string"},
+            "part_of_speech": {"type": "string"},
+            "why_useful": {"type": "string"},
+        },
+    )
+
+
+def _important_verbs_schema() -> dict[str, Any]:
+    """Schema for Groq-generated verb output."""
+
+    return _array_section_schema(
+        "important_verbs",
+        {
+            "verb": {"type": "string"},
+            "meaning": {"type": "string"},
+            "common_form": {"type": "string"},
+            "learning_note": {"type": "string"},
+        },
+    )
+
+
+def _grammar_patterns_schema() -> dict[str, Any]:
+    """Schema for Groq-generated grammar output."""
+
+    return _array_section_schema(
+        "grammar_patterns",
+        {
+            "title": {"type": "string"},
+            "explanation": {"type": "string"},
+            "examples": _string_array_schema(),
+            "learning_note": {"type": "string"},
+        },
+    )
+
+
+def _useful_phrases_schema() -> dict[str, Any]:
+    """Schema for Groq-generated phrase output."""
+
+    return _array_section_schema(
+        "useful_phrases",
+        {
+            "phrase": {"type": "string"},
+            "meaning": {"type": "string"},
+            "usage_note": {"type": "string"},
+        },
+    )
+
+
+def _mini_lessons_schema() -> dict[str, Any]:
+    """Schema for Groq-generated mini lesson output."""
+
+    return _array_section_schema(
+        "mini_lessons",
+        {
+            "title": {"type": "string"},
+            "objective": {"type": "string"},
+            "explanation": {"type": "string"},
+            "examples": _string_array_schema(),
+        },
+    )
+
+
+def _practice_exercises_schema() -> dict[str, Any]:
+    """Schema for Groq-generated practice exercise output."""
+
+    return _array_section_schema(
+        "practice_exercises",
+        {
+            "instruction": {"type": "string"},
+            "question": {"type": "string"},
+            "answer": {"type": "string"},
+        },
+    )
+
+
+def _reading_practice_schema() -> dict[str, Any]:
+    """Schema for Groq-generated reading practice output."""
+
+    return _object_schema(
+        {
+            "reading_practice": _object_schema(
+                {
+                    "title": {"type": "string"},
+                    "passage": {"type": "string"},
+                    "vocabulary_help": _string_array_schema(),
+                    "questions": _string_array_schema(),
+                    "answers": _string_array_schema(),
+                }
+            )
+        }
+    )
+
+
+def _review_sheet_schema() -> dict[str, Any]:
+    """Schema for Groq-generated review sheet output."""
+
+    return _object_schema(
+        {
+            "review_sheet": _object_schema(
+                {
+                    "top_vocabulary": _string_array_schema(),
+                    "top_verbs": _string_array_schema(),
+                    "top_phrases": _string_array_schema(),
+                    "grammar_points": _string_array_schema(),
+                    "study_tips": _string_array_schema(),
+                }
+            )
+        }
+    )
+
+
+def _answer_key_schema() -> dict[str, Any]:
+    """Schema for Groq-generated answer key output."""
+
+    return _object_schema({"answer_key": _string_array_schema()})
+
+
 def generate_overview_with_groq(
     clean_text: str,
     stats: dict,
@@ -50,7 +221,11 @@ def generate_overview_with_groq(
         explanation_language=explanation_language,
         learner_level=learner_level,
     )
-    data = client.generate_json(prompt)
+    data = client.generate_json(
+        prompt,
+        json_schema=_document_overview_schema(),
+        schema_name="document_overview",
+    )
 
     return DocumentOverview(
         summary=_as_text(data.get("summary"), "Overview will be generated from the document context."),
@@ -89,7 +264,11 @@ def generate_key_vocabulary_with_groq(
         learner_level=learner_level,
         max_words=max_words,
     )
-    data = client.generate_json(prompt)
+    data = client.generate_json(
+        prompt,
+        json_schema=_key_vocabulary_schema(),
+        schema_name="key_vocabulary",
+    )
     raw_items = _find_vocabulary_items(data)
     vocabulary = _vocabulary_items_from_raw(raw_items)
 
@@ -213,7 +392,11 @@ def generate_grammar_patterns_with_groq(
         learner_level=learner_level,
         max_patterns=max_patterns,
     )
-    data = client.generate_json(prompt)
+    data = client.generate_json(
+        prompt,
+        json_schema=_grammar_patterns_schema(),
+        schema_name="grammar_patterns",
+    )
     raw_items = _find_list_or_mapping(data, ["grammar_patterns", "grammar", "patterns", "items"])
     patterns = _grammar_patterns_from_raw(raw_items)
 
@@ -283,7 +466,11 @@ def generate_useful_phrases_with_groq(
         learner_level=learner_level,
         max_phrases=max_phrases,
     )
-    data = client.generate_json(prompt)
+    data = client.generate_json(
+        prompt,
+        json_schema=_useful_phrases_schema(),
+        schema_name="useful_phrases",
+    )
     raw_items = _find_list_or_mapping(data, ["useful_phrases", "phrases", "expressions", "items"])
     phrases = _useful_phrases_from_raw(raw_items)
 
@@ -346,7 +533,11 @@ def generate_mini_lessons_with_groq(
         learner_level=learner_level,
         max_lessons=max_lessons,
     )
-    data = client.generate_json(prompt)
+    data = client.generate_json(
+        prompt,
+        json_schema=_mini_lessons_schema(),
+        schema_name="mini_lessons",
+    )
     raw_items = _find_list_or_mapping(data, ["mini_lessons", "lessons", "language_lessons", "items"])
     lessons = _mini_lessons_from_raw(raw_items)
 
@@ -382,7 +573,9 @@ def generate_important_verbs_with_groq(
     data = client.generate_json(
         build_important_verbs_prompt(
             clean_text, source_language, explanation_language, learner_level, max_verbs
-        )
+        ),
+        json_schema=_important_verbs_schema(),
+        schema_name="important_verbs",
     )
     verbs = _verb_items_from_raw(_find_list_or_mapping(data, ["important_verbs", "verbs", "verbes", "items"]))
 
@@ -447,7 +640,9 @@ def generate_practice_exercises_with_groq(
     data = client.generate_json(
         build_practice_exercises_prompt(
             clean_text, source_language, explanation_language, learner_level, max_exercises
-        )
+        ),
+        json_schema=_practice_exercises_schema(),
+        schema_name="practice_exercises",
     )
     exercises = _practice_exercises_from_raw(
         _find_list_or_mapping(data, ["practice_exercises", "exercises", "exercices", "items"])
@@ -522,7 +717,9 @@ def generate_reading_practice_with_groq(
 
     client = groq_client or GroqClient()
     data = client.generate_json(
-        build_reading_practice_prompt(clean_text, source_language, explanation_language, learner_level)
+        build_reading_practice_prompt(clean_text, source_language, explanation_language, learner_level),
+        json_schema=_reading_practice_schema(),
+        schema_name="reading_practice",
     )
     raw = data.get("reading_practice", data)
     if not isinstance(raw, dict):
@@ -549,7 +746,9 @@ def generate_review_sheet_with_groq(
 
     client = groq_client or GroqClient()
     data = client.generate_json(
-        build_review_sheet_prompt(clean_text, source_language, explanation_language, learner_level)
+        build_review_sheet_prompt(clean_text, source_language, explanation_language, learner_level),
+        json_schema=_review_sheet_schema(),
+        schema_name="review_sheet",
     )
     raw = data.get("review_sheet", data)
     if not isinstance(raw, dict):
@@ -590,7 +789,9 @@ def generate_answer_key_with_groq(
         data = client.generate_json(
             build_answer_key_prompt(
                 exercise_payload, reading_payload, source_language, explanation_language
-            )
+            ),
+            json_schema=_answer_key_schema(),
+            schema_name="answer_key",
         )
         answer_key = _as_text_list(data.get("answer_key"), [])
         if answer_key:

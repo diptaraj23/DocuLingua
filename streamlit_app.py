@@ -6,7 +6,7 @@ import streamlit as st
 
 from app.config import settings
 from app.core.document_loader import save_uploaded_file
-from app.core.pipeline import generate_partial_groq_learning_guide_pdf, process_document_for_preview
+from app.core.pipeline import generate_llm_learning_guide_pdf, process_document_for_preview
 from app.core.text_cleaner import is_text_too_short
 
 
@@ -94,17 +94,22 @@ if process_clicked and uploaded_file:
 st.divider()
 st.subheader("Sample PDF Guide")
 st.write(
-    "Generate a static PDF guide. Groq can now generate all major PDF learning sections. "
+    "Generate a static PDF guide. LLM providers can now generate all major PDF learning sections. "
     "The guide does not create sentence-wise translation or interactive exercises."
 )
-use_groq = st.checkbox("Use Groq to generate the full learning guide", value=False)
-if use_groq:
+provider_order_label = " -> ".join(provider.title() for provider in settings.provider_order)
+st.caption(f"Configured provider order: {provider_order_label}")
+use_llm = st.checkbox("Use LLM providers to generate the full learning guide", value=False)
+fallback_to_mock = st.checkbox("Use sample fallback if an LLM section fails", value=True)
+if use_llm:
     st.info(
-        "Groq will generate the overview, vocabulary, verbs, grammar, phrases, mini lessons, "
-        "practice exercises, reading practice, review sheet, and answer key."
+        "Groq is tried first. If Groq rate-limits, returns invalid JSON, or produces unusable schema, "
+        "the app will try Gemini automatically. The output remains a static PDF."
     )
-    if not settings.groq_api_key:
-        st.warning("GROQ_API_KEY is missing. Add it to `.env` or disable Groq to use mock content.")
+    if "groq" in settings.provider_order and not settings.groq_api_key:
+        st.warning("GROQ_API_KEY is missing. Groq will be skipped and fallback providers may be tried.")
+    if "gemini" in settings.provider_order and not settings.gemini_api_key:
+        st.warning("GEMINI_API_KEY is missing. Gemini fallback will not be available.")
 
 generate_clicked = st.button(
     "Generate PDF Guide",
@@ -115,22 +120,39 @@ if generate_clicked and st.session_state.saved_path:
     output_dir = settings.project_root / "app" / "storage" / "outputs"
 
     try:
-        result = generate_partial_groq_learning_guide_pdf(
+        if use_llm and not any(
+            [
+                settings.groq_api_key if "groq" in settings.provider_order else "",
+                settings.gemini_api_key if "gemini" in settings.provider_order else "",
+            ]
+        ):
+            st.error("No configured LLM provider API key was found. Add a key to `.env` or disable LLM generation.")
+            st.stop()
+
+        result = generate_llm_learning_guide_pdf(
             file_path=st.session_state.saved_path,
             source_language=source_language,
             explanation_language=explanation_language,
             learner_level=learner_level,
             output_dir=output_dir,
-            use_groq=use_groq,
+            use_llm=use_llm,
+            fallback_to_mock_on_section_error=fallback_to_mock,
         )
         guide = result["guide"]
         pdf_path = result["pdf_path"]
         learning_stats = guide.overview.learning_statistics
 
         st.success("PDF guide generated successfully.")
-        st.write("Groq used: **" + ("yes" if use_groq else "no") + "**")
-        sections = result["groq_sections_generated"] or ["None; mock content used."]
-        st.write("Groq-generated sections: " + ", ".join(sections))
+        st.write("LLM providers used: **" + ("yes" if use_llm else "no") + "**")
+        sections = result["llm_sections_generated"] or ["None; mock content used."]
+        st.write("LLM-generated sections: " + ", ".join(sections))
+        metadata = result.get("generation_metadata")
+        if metadata and metadata.sections:
+            st.dataframe(metadata.to_display_rows(), use_container_width=True)
+        if result["failed_llm_sections"]:
+            st.warning("LLM generation failed for: " + ", ".join(result["failed_llm_sections"]))
+        if result["used_mock_fallback_sections"]:
+            st.warning("Sample fallback used for: " + ", ".join(result["used_mock_fallback_sections"]))
         stat_columns = st.columns(4)
         stat_columns[0].metric("Vocabulary", learning_stats.vocabulary_count)
         stat_columns[1].metric("Verbs", learning_stats.important_verbs)
@@ -147,4 +169,4 @@ if generate_clicked and st.session_state.saved_path:
     except Exception as error:
         st.error(f"Could not generate PDF guide: {error}")
 
-st.caption("This MVP flow outputs a static PDF. Disable Groq to generate a fully mock/sample guide.")
+st.caption("This MVP flow outputs a static PDF. Disable LLM generation to create a fully mock/sample guide.")

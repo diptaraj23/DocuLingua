@@ -9,22 +9,27 @@ from app.core.text_chunker import chunk_text
 from app.core.text_cleaner import clean_text
 from app.core.text_stats import get_text_statistics
 from app.learning.content_schema import DocumentOverview, LearningGuide
-from app.learning.groq_guide_generator import (
-    generate_answer_key_with_groq,
-    generate_grammar_patterns_with_groq,
-    generate_important_verbs_with_groq,
-    generate_key_vocabulary_with_groq,
-    generate_mini_lessons_with_groq,
-    generate_overview_with_groq,
-    generate_practice_exercises_with_groq,
-    generate_reading_practice_with_groq,
-    generate_review_sheet_with_groq,
-    generate_useful_phrases_with_groq,
+from app.learning.llm_guide_generator import (
+    generate_answer_key_with_llm,
+    generate_grammar_patterns_with_llm,
+    generate_important_verbs_with_llm,
+    generate_key_vocabulary_with_llm,
+    generate_mini_lessons_with_llm,
+    generate_overview_with_llm,
+    generate_practice_exercises_with_llm,
+    generate_reading_practice_with_llm,
+    generate_review_sheet_with_llm,
+    generate_useful_phrases_with_llm,
 )
+from app.llm.providers.metadata import GuideGenerationMetadata, SectionGenerationMetadata
+from app.llm.providers.router import ProviderRouter
 from app.learning.mock_guide_generator import create_mock_learning_guide
 from app.pdf.pdf_builder import build_learning_guide_pdf
+from app.utils.logging_utils import get_logger
 
-MAX_GROQ_INPUT_CHARS = 12000
+MAX_LLM_INPUT_CHARS = 12000
+MAX_GROQ_INPUT_CHARS = MAX_LLM_INPUT_CHARS
+logger = get_logger(__name__)
 
 
 def process_document_for_preview(file_path: Path) -> dict:
@@ -79,11 +84,35 @@ def generate_partial_groq_learning_guide_pdf(
     learner_level: str,
     output_dir: Path,
     use_groq: bool = True,
+    fallback_to_mock_on_section_error: bool = True,
 ) -> dict:
-    """Generate a PDF with selected Groq sections and mock remaining sections."""
+    """Backward-compatible wrapper for the provider-agnostic LLM pipeline."""
+
+    return generate_llm_learning_guide_pdf(
+        file_path=file_path,
+        source_language=source_language,
+        explanation_language=explanation_language,
+        learner_level=learner_level,
+        output_dir=output_dir,
+        use_llm=use_groq,
+        fallback_to_mock_on_section_error=fallback_to_mock_on_section_error,
+    )
+
+
+def generate_llm_learning_guide_pdf(
+    file_path: Path,
+    source_language: str,
+    explanation_language: str,
+    learner_level: str,
+    output_dir: Path,
+    use_llm: bool = True,
+    fallback_to_mock_on_section_error: bool = True,
+    provider_router: ProviderRouter | None = None,
+) -> dict:
+    """Generate a PDF using configured LLM providers with section-level fallback."""
 
     processed = process_document_for_preview(file_path)
-    clean_text_for_groq = processed["clean_text"][:MAX_GROQ_INPUT_CHARS]
+    clean_text_for_llm = processed["clean_text"][:MAX_LLM_INPUT_CHARS]
     # Future work can process larger documents chunk-by-chunk; this MVP sends a safe truncation.
     overview = None
     key_vocabulary = None
@@ -95,92 +124,136 @@ def generate_partial_groq_learning_guide_pdf(
     reading_practice = None
     review_sheet = None
     answer_key = None
-    groq_sections_generated: list[str] = []
+    llm_sections_generated: list[str] = []
+    failed_llm_sections: list[str] = []
+    used_mock_fallback_sections: list[str] = []
+    section_metadata: list[SectionGenerationMetadata] = []
+    router = provider_router or ProviderRouter()
 
-    if use_groq:
+    def run_section(section_name: str, generator):
         try:
-            overview = generate_overview_with_groq(
-                clean_text=clean_text_for_groq,
+            value, metadata = generator()
+        except Exception as error:
+            logger.info("LLM section failed: %s: %s", section_name, error)
+            failed_llm_sections.append(section_name)
+            if fallback_to_mock_on_section_error:
+                used_mock_fallback_sections.append(section_name)
+                section_metadata.append(SectionGenerationMetadata(section_name=section_name))
+                return None
+            raise ValueError(f"LLM section generation failed for {section_name}: {error}") from error
+        section_metadata.append(metadata)
+        llm_sections_generated.append(section_name)
+        return value
+
+    if use_llm:
+        overview = run_section(
+            "Document Context Overview",
+            lambda: generate_overview_with_llm(
+                clean_text=clean_text_for_llm,
                 stats=processed["stats"],
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
-            )
-            groq_sections_generated.append("Document Context Overview")
-
-            key_vocabulary = generate_key_vocabulary_with_groq(
-                clean_text=clean_text_for_groq,
+                provider_router=router,
+            ),
+        )
+        key_vocabulary = run_section(
+            "Key Vocabulary",
+            lambda: generate_key_vocabulary_with_llm(
+                clean_text=clean_text_for_llm,
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
-            )
-            groq_sections_generated.append("Key Vocabulary")
-
-            important_verbs = generate_important_verbs_with_groq(
-                clean_text=clean_text_for_groq,
+                provider_router=router,
+            ),
+        )
+        important_verbs = run_section(
+            "Important Verbs",
+            lambda: generate_important_verbs_with_llm(
+                clean_text=clean_text_for_llm,
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
-            )
-            groq_sections_generated.append("Important Verbs")
-
-            grammar_patterns = generate_grammar_patterns_with_groq(
-                clean_text=clean_text_for_groq,
+                provider_router=router,
+            ),
+        )
+        grammar_patterns = run_section(
+            "Grammar Patterns",
+            lambda: generate_grammar_patterns_with_llm(
+                clean_text=clean_text_for_llm,
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
-            )
-            groq_sections_generated.append("Grammar Patterns")
-
-            useful_phrases = generate_useful_phrases_with_groq(
-                clean_text=clean_text_for_groq,
+                provider_router=router,
+            ),
+        )
+        useful_phrases = run_section(
+            "Useful Phrases and Expressions",
+            lambda: generate_useful_phrases_with_llm(
+                clean_text=clean_text_for_llm,
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
-            )
-            groq_sections_generated.append("Useful Phrases and Expressions")
-
-            mini_lessons = generate_mini_lessons_with_groq(
-                clean_text=clean_text_for_groq,
+                provider_router=router,
+            ),
+        )
+        mini_lessons = run_section(
+            "Mini Language Lessons",
+            lambda: generate_mini_lessons_with_llm(
+                clean_text=clean_text_for_llm,
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
-            )
-            groq_sections_generated.append("Mini Language Lessons")
-
-            practice_exercises = generate_practice_exercises_with_groq(
-                clean_text=clean_text_for_groq,
+                provider_router=router,
+            ),
+        )
+        practice_exercises = run_section(
+            "Practice Exercises",
+            lambda: generate_practice_exercises_with_llm(
+                clean_text=clean_text_for_llm,
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
-            )
-            groq_sections_generated.append("Practice Exercises")
-
-            reading_practice = generate_reading_practice_with_groq(
-                clean_text=clean_text_for_groq,
+                provider_router=router,
+            ),
+        )
+        reading_practice = run_section(
+            "Short Reading Practice",
+            lambda: generate_reading_practice_with_llm(
+                clean_text=clean_text_for_llm,
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
-            )
-            groq_sections_generated.append("Short Reading Practice")
-
-            review_sheet = generate_review_sheet_with_groq(
-                clean_text=clean_text_for_groq,
+                provider_router=router,
+            ),
+        )
+        review_sheet = run_section(
+            "Review Sheet",
+            lambda: generate_review_sheet_with_llm(
+                clean_text=clean_text_for_llm,
                 source_language=source_language,
                 explanation_language=explanation_language,
                 learner_level=learner_level,
+                provider_router=router,
+            ),
+        )
+        if practice_exercises is not None and reading_practice is not None:
+            answer_key = run_section(
+                "Answer Key",
+                lambda: generate_answer_key_with_llm(
+                    exercises=practice_exercises,
+                    reading_practice=reading_practice,
+                    source_language=source_language,
+                    explanation_language=explanation_language,
+                    provider_router=router,
+                ),
             )
-            groq_sections_generated.append("Review Sheet")
-
-            answer_key = generate_answer_key_with_groq(
-                exercises=practice_exercises,
-                reading_practice=reading_practice,
-                source_language=source_language,
-                explanation_language=explanation_language,
-            )
-            groq_sections_generated.append("Answer Key")
-        except ValueError as error:
-            raise ValueError(f"Groq section generation failed: {error}") from error
+        elif fallback_to_mock_on_section_error:
+            failed_llm_sections.append("Answer Key")
+            used_mock_fallback_sections.append("Answer Key")
+            section_metadata.append(SectionGenerationMetadata(section_name="Answer Key"))
+        else:
+            raise ValueError("LLM section generation failed for Answer Key: required prior sections failed.")
 
     guide = create_mock_learning_guide(
         clean_text=processed["clean_text"],
@@ -199,8 +272,9 @@ def generate_partial_groq_learning_guide_pdf(
         review_sheet=review_sheet,
         answer_key=answer_key,
     )
+    guide.generation_metadata = GuideGenerationMetadata(sections=section_metadata)
 
-    suffix = "groq_sample_learning_guide" if use_groq else "sample_learning_guide"
+    suffix = "llm_learning_guide" if use_llm else "sample_learning_guide"
     output_path = Path(output_dir) / f"{Path(file_path).stem}_{suffix}.pdf"
     pdf_path = build_learning_guide_pdf(guide, output_path)
 
@@ -209,7 +283,12 @@ def generate_partial_groq_learning_guide_pdf(
         "pdf_path": pdf_path,
         "stats": processed["stats"],
         "chunks": processed["chunks"],
-        "groq_sections_generated": groq_sections_generated,
+        "llm_sections_generated": llm_sections_generated,
+        "failed_llm_sections": failed_llm_sections,
+        "generation_metadata": guide.generation_metadata,
+        "groq_sections_generated": llm_sections_generated,
+        "failed_groq_sections": failed_llm_sections,
+        "used_mock_fallback_sections": used_mock_fallback_sections,
     }
 
 

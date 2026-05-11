@@ -232,6 +232,32 @@
           {% endfor %}
         </ol>
       </section>
+
+      {% if guide.generation_metadata and guide.generation_metadata.sections %}
+        <section>
+          <h2>Generation Information</h2>
+          <table class="generation-table">
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Provider</th>
+                <th>Model</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in guide.generation_metadata.to_display_rows() %}
+                <tr>
+                  <td>{{ row.section_name }}</td>
+                  <td>{{ row.provider }}</td>
+                  <td>{{ row.model }}</td>
+                  <td>{{ row.status }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
+      {% endif %}
     </main>
   </body>
 </html>

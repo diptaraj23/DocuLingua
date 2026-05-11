@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.llm.providers.metadata import GuideGenerationMetadata
+
 
 class LearningStatistics(BaseModel):
     """Counts shown in the guide overview."""
@@ -124,3 +126,4 @@ class LearningGuide(BaseModel):
     reading_practice: ReadingPractice = Field(default_factory=ReadingPractice)
     review_sheet: ReviewSheet = Field(default_factory=ReviewSheet)
     answer_key: list[str] = Field(default_factory=list)
+    generation_metadata: GuideGenerationMetadata | None = None

@@ -12,7 +12,7 @@ The first MVP is intentionally simple:
 
 - Upload a PDF or TXT document in Streamlit.
 - Extract and clean document text locally.
-- Generate language-learning content with the Groq API in a future phase.
+- Generate language-learning content with modular LLM providers.
 - Render a static downloadable PDF workbook with Jinja2 and WeasyPrint.
 - Store uploads, generated files, and cache files locally.
 
@@ -39,7 +39,7 @@ The planned PDF workbook contains:
 
 - Frontend: Streamlit
 - Backend: Python
-- LLM provider: Groq API
+- LLM providers: Groq first, Gemini fallback
 - PDF generation: Jinja2 and WeasyPrint
 - PDF extraction: PyMuPDF
 - TXT extraction: Python standard library
@@ -65,15 +65,33 @@ pip install -r requirements.txt
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and add your Groq API key when you are ready to implement generation:
+Copy `.env.example` to `.env` and add provider API keys:
 
 ```text
 GROQ_API_KEY=
 GROQ_MAIN_MODEL=llama-3.3-70b-versatile
 GROQ_FAST_MODEL=llama-3.1-8b-instant
+
+GEMINI_API_KEY=
+GEMINI_MAIN_MODEL=gemini-2.5-flash
+GEMINI_FAST_MODEL=gemini-2.5-flash-lite
+
+PRIMARY_LLM_PROVIDER=groq
+FALLBACK_LLM_PROVIDERS=gemini
 ```
 
-The current starter app does not require a working Groq API key.
+LLM generation is optional in the UI. If LLM generation is disabled, the app can still create a mock/sample guide.
+
+## Multi-Provider LLM Design
+
+DocuLingua uses a provider router for structured JSON generation. The default order is:
+
+1. Groq
+2. Gemini fallback
+
+If Groq is rate-limited, unavailable, returns invalid JSON, or returns JSON that cannot be validated into the expected section schema, the router tries Gemini. Every provider response goes through the same JSON parser and Pydantic validation path before content is accepted.
+
+Future providers such as OpenRouter, GitHub Models, or NVIDIA NIM can be added by implementing `BaseLLMProvider` and registering the provider in the router.
 
 ## Run Streamlit
 
@@ -86,22 +104,24 @@ streamlit run streamlit_app.py
 - Phase 1: Repository skeleton and starter documentation
 - Phase 2: Robust PDF/TXT text extraction
 - Phase 3: Learning guide schema and content validation
-- Phase 4: Groq prompt design and response parsing
+- Phase 4: LLM prompt design, provider routing, and response parsing
 - Phase 5: PDF rendering with polished workbook templates
 - Phase 6: Streamlit integration and download flow
 - Phase 7: Testing, error handling, and UX polish
 
 ## Current Status
 
-Phase 1, Phase 2 document ingestion, the first non-LLM PDF flow, and the first Groq-powered content step are implemented. The app supports document upload, TXT/PDF extraction, text cleaning, deterministic chunking, document statistics, mock `LearningGuide` generation, static PDF rendering, and Streamlit PDF download.
+Phase 1, Phase 2 document ingestion, the first non-LLM PDF flow, and full LLM-powered content generation are implemented. The app supports document upload, TXT/PDF extraction, text cleaning, deterministic chunking, document statistics, mock `LearningGuide` generation, static PDF rendering, and Streamlit PDF download.
 
-The Groq client wrapper and prompt builders now cover the full generated learning guide: overview, vocabulary, verbs, grammar, phrases, mini lessons, exercises, reading practice, review sheet, and answer key. The output remains a static PDF. DocuLingua does not generate sentence-wise translation or interactive exercises.
+The LLM provider layer now covers the full generated learning guide: overview, vocabulary, verbs, grammar, phrases, mini lessons, exercises, reading practice, review sheet, and answer key. The output remains a static PDF. DocuLingua does not generate sentence-wise translation or interactive exercises.
 
-Tests use mocked Groq responses and do not call the real API.
+The provider router records which provider and model generated each section. Generation metadata appears in Streamlit and in the generated PDF. The pipeline includes safer JSON parsing, JSON extraction from messy responses, retry on invalid JSON, section-level mock fallback, Streamlit warnings for failed sections, and basic logging for debugging.
 
-To use Groq:
+Tests use mocked provider responses and do not call real APIs.
+
+To use LLM generation:
 
 1. Copy `.env.example` to `.env`.
-2. Add `GROQ_API_KEY`.
+2. Add `GROQ_API_KEY` and optionally `GEMINI_API_KEY`.
 3. Run Streamlit.
-4. Enable the Groq checkbox in the UI.
+4. Enable the LLM checkbox in the UI.

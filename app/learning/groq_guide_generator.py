@@ -620,7 +620,10 @@ def _verb_items_from_raw(raw_items: Any) -> list[VerbItem]:
                 infinitive=verb,
                 translation=meaning,
                 tense_or_form=_first_text(item, ["common_form", "form", "forme", "tense", "temps"]),
-                example_sentence=_first_text(item, ["learning_note", "note", "example", "exemple"]),
+                example_sentence=_clean_learning_note(
+                    _first_text(item, ["example", "exemple"])
+                    or _first_text(item, ["learning_note", "note"])
+                ),
             )
         )
     return verbs
@@ -698,9 +701,9 @@ def _practice_exercises_from_raw(raw_items: Any) -> list[PracticeExercise]:
         exercises.append(
             PracticeExercise(
                 title=f"Exercise {index}",
-                instructions=instruction,
-                questions=[question],
-                answers=[answer],
+                instructions=_clean_prompt_text(instruction),
+                questions=_split_exercise_questions(question),
+                answers=[_clean_answer_text(answer)],
             )
         )
     return exercises
@@ -760,8 +763,17 @@ def generate_review_sheet_with_groq(
     tips = _as_text_list(raw.get("study_tips"), [])
     if not any([vocabulary, verbs, phrases, grammar, tips]):
         raise ValueError("Groq review sheet did not include usable review items.")
+    key_points = []
+    if vocabulary:
+        key_points.append("Review the core vocabulary: " + ", ".join(vocabulary[:8]))
+    if verbs:
+        key_points.append("Practice the main verbs: " + ", ".join(verbs[:6]))
+    if phrases:
+        key_points.append("Reuse these phrases in your own sentences: " + ", ".join(phrases[:5]))
+    if grammar:
+        key_points.append("Connect the grammar points to examples from the document.")
     return ReviewSheet(
-        key_points=vocabulary + verbs + phrases,
+        key_points=key_points,
         vocabulary_to_review=vocabulary,
         grammar_to_review=grammar,
         study_plan=tips,
@@ -795,7 +807,7 @@ def generate_answer_key_with_groq(
         )
         answer_key = _as_text_list(data.get("answer_key"), [])
         if answer_key:
-            return answer_key
+            return _dedupe_answer_key(answer_key)
     except Exception:
         pass
     return _build_local_answer_key(exercises, reading_practice)
@@ -1363,6 +1375,58 @@ def _build_local_answer_key(
     for index, answer in enumerate(reading_practice.answers, start=1):
         answers.append(f"Reading {index}: {answer}")
     return answers
+
+
+def _clean_prompt_text(text: str) -> str:
+    """Remove nested list numbering that makes generated exercises hard to read."""
+
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    cleaned = re.sub(r"(^|\s)(\d+)\.\s+\2\.\s+", r"\1\2. ", cleaned)
+    return cleaned
+
+
+def _clean_answer_text(text: str) -> str:
+    """Normalize answer-key fragments without changing their meaning."""
+
+    cleaned = _clean_prompt_text(text)
+    cleaned = re.sub(r"^Exercise\s+\d+\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+    return cleaned.strip()
+
+
+def _clean_learning_note(text: str) -> str:
+    """Prefer learner-facing notes over English-only pseudo-examples."""
+
+    cleaned = _clean_prompt_text(text)
+    if not cleaned:
+        return ""
+    return cleaned
+
+
+def _dedupe_answer_key(items: list[str]) -> list[str]:
+    """Remove exact duplicate answer-key entries while preserving order."""
+
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for item in items:
+        normalized = " ".join(item.lower().split())
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(item)
+    return deduped
+
+
+def _split_exercise_questions(question: str) -> list[str]:
+    """Split dense numbered prompts into separate printable question lines."""
+
+    cleaned = _clean_prompt_text(question)
+    if not cleaned:
+        return []
+    numbered_parts = re.split(r"\s+(?=\d+\.\s+)", cleaned)
+    parts = [re.sub(r"^\d+\.\s*", "", part).strip() for part in numbered_parts if part.strip()]
+    if len(parts) > 1:
+        return parts
+    return [cleaned]
 
 
 def _parse_phrase_string(item: str) -> UsefulPhrase | None:

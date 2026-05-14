@@ -26,8 +26,11 @@ def create_mock_learning_guide(
     source_language: str = "French",
     explanation_language: str = "English",
     learner_level: str = "A2",
+    title: str | None = None,
+    topic: str | None = None,
     overview: DocumentOverview | None = None,
     key_vocabulary: list[VocabularyItem] | None = None,
+    vocabulary_groups: list[VocabularyGroup] | None = None,
     important_verbs: list[VerbItem] | None = None,
     grammar_patterns: list[GrammarPattern] | None = None,
     useful_phrases: list[UsefulPhrase] | None = None,
@@ -39,7 +42,7 @@ def create_mock_learning_guide(
 ) -> LearningGuide:
     """Create a complete mock guide without calling an LLM provider."""
 
-    topic = "music, emotions, and memories"
+    selected_topic = topic or "music, emotions, and memories"
     word_count = stats.get("word_count", 0)
     paragraph_count = stats.get("paragraph_count", 0)
 
@@ -81,7 +84,7 @@ def create_mock_learning_guide(
         ),
     ]
 
-    vocabulary_groups = [
+    mock_vocabulary_groups = [
         VocabularyGroup(
             topic="Music",
             items=[
@@ -225,7 +228,7 @@ def create_mock_learning_guide(
 
     learning_statistics = LearningStatistics(
         vocabulary_count=len(key_vocabulary or mock_key_vocabulary),
-        topic_specific_words=sum(len(group.items) for group in vocabulary_groups),
+        topic_specific_words=sum(len(group.items) for group in (vocabulary_groups or mock_vocabulary_groups)),
         important_verbs=len(important_verbs or mock_important_verbs),
         useful_phrases=len(useful_phrases or mock_useful_phrases),
         grammar_concepts=len(grammar_patterns or mock_grammar_patterns),
@@ -235,7 +238,7 @@ def create_mock_learning_guide(
 
     mock_overview = DocumentOverview(
         summary=(
-            f"This sample guide treats the uploaded document as a short French text about {topic}. "
+            f"This sample guide treats the uploaded document as a short French text about {selected_topic}. "
             f"The processed text contains about {word_count} words across {paragraph_count} paragraphs."
         ),
         estimated_level=learner_level,
@@ -256,14 +259,14 @@ def create_mock_learning_guide(
     selected_overview.learning_statistics = learning_statistics
 
     return LearningGuide(
-        title="DocuLingua Sample French Learning Guide",
+        title=title or "DocuLingua Sample French Learning Guide",
         source_language=source_language,
         explanation_language=explanation_language,
         learner_level=learner_level,
-        topic=topic,
+        topic=selected_topic,
         overview=selected_overview,
         key_vocabulary=key_vocabulary or mock_key_vocabulary,
-        vocabulary_groups=vocabulary_groups,
+        vocabulary_groups=vocabulary_groups or mock_vocabulary_groups,
         important_verbs=important_verbs or mock_important_verbs,
         grammar_patterns=grammar_patterns or mock_grammar_patterns,
         useful_phrases=useful_phrases or mock_useful_phrases,

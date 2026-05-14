@@ -306,8 +306,17 @@ def generate_review_sheet_with_llm(
         tips = _as_text_list(raw.get("study_tips"), [])
         if not any([vocabulary, verbs, phrases, grammar, tips]):
             raise ValueError("Review sheet did not include usable items.")
+        key_points = []
+        if vocabulary:
+            key_points.append("Review the core vocabulary: " + ", ".join(vocabulary[:8]))
+        if verbs:
+            key_points.append("Practice the main verbs: " + ", ".join(verbs[:6]))
+        if phrases:
+            key_points.append("Reuse these phrases in your own sentences: " + ", ".join(phrases[:5]))
+        if grammar:
+            key_points.append("Connect the grammar points to examples from the document.")
         return ReviewSheet(
-            key_points=vocabulary + verbs + phrases,
+            key_points=key_points,
             vocabulary_to_review=vocabulary,
             grammar_to_review=grammar,
             study_plan=tips,
@@ -336,7 +345,7 @@ def generate_answer_key_with_llm(
     prompt = build_answer_key_prompt(exercise_payload, reading_payload, source_language, explanation_language)
 
     def validator(data: dict[str, Any]) -> list[str]:
-        items = _as_text_list(data.get("answer_key"), [])
+        items = _dedupe_answer_key(_as_text_list(data.get("answer_key"), []))
         if not items:
             raise ValueError("Answer key list is missing.")
         return items
@@ -347,3 +356,17 @@ def generate_answer_key_with_llm(
         validator,
         json_schema=_answer_key_schema(),
     )
+
+
+def _dedupe_answer_key(items: list[str]) -> list[str]:
+    """Remove exact duplicate answer-key lines while preserving order."""
+
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for item in items:
+        normalized = " ".join(item.lower().split())
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(item)
+    return deduped

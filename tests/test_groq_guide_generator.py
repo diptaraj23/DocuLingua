@@ -345,6 +345,25 @@ def test_generate_practice_exercises_with_groq_returns_items() -> None:
     assert exercises and isinstance(exercises[0], PracticeExercise)
 
 
+def test_generate_practice_exercises_cleans_nested_numbering() -> None:
+    client = FakeGroqClient(
+        {
+            "practice_exercises": [
+                {
+                    "instruction": "Complete the sentences.",
+                    "question": "1. 1. Le ___ organise la musique. 2. La ___ monte.",
+                    "answer": "rythme; melodie",
+                }
+            ]
+        }
+    )
+
+    exercises = generate_practice_exercises_with_groq("jouer", "French", "English", "A2", groq_client=client)
+
+    assert exercises[0].questions[0] == "Le ___ organise la musique."
+    assert exercises[0].questions[1] == "La ___ monte."
+
+
 def test_generate_practice_exercises_with_groq_accepts_alternate_keys() -> None:
     client = FakeGroqClient(
         {
@@ -389,6 +408,7 @@ def test_generate_review_sheet_with_groq_returns_item() -> None:
 
     assert isinstance(review, ReviewSheet)
     assert review.vocabulary_to_review
+    assert review.key_points[0].startswith("Review the core vocabulary")
 
 
 def test_generate_answer_key_with_groq_returns_list() -> None:

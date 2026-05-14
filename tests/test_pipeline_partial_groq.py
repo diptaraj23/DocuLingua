@@ -95,6 +95,24 @@ def test_partial_groq_pipeline_with_fake_router_creates_pdf(monkeypatch, tmp_pat
     assert any(row["status"] == "completed" for row in result["process_steps"])
 
 
+def test_llm_pipeline_derives_title_topic_and_vocabulary_groups(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("app.core.pipeline.ProviderRouter", lambda: FakeRouter())
+
+    result = generate_partial_groq_learning_guide_pdf(
+        file_path=Path("data/sample_documents/sample_french_text.txt"),
+        source_language="French",
+        explanation_language="English",
+        learner_level="A2",
+        output_dir=tmp_path,
+        use_groq=True,
+    )
+
+    guide = result["guide"]
+    assert guide.title != "DocuLingua Sample French Learning Guide"
+    assert guide.topic != "music, emotions, and memories"
+    assert all(group.topic != "Emotions and Memory" for group in guide.vocabulary_groups)
+
+
 def test_partial_groq_pipeline_falls_back_when_section_fails(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("app.core.pipeline.ProviderRouter", lambda: FakeRouter({"Key Vocabulary"}))
 
@@ -200,5 +218,70 @@ def _payload_for(section_name: str) -> dict:
             }
         },
         "Answer Key": {"answer_key": ["1. joue"]},
+        "Polish document overview": {
+            "overview": {
+                "summary": "Polished overview.",
+                "estimated_level": "A2",
+                "difficulty_notes": "Friendly polished content.",
+                "learning_statistics": {},
+                "main_learning_focus": ["polished vocabulary"],
+                "suggested_study_approach": ["read, review, practice"],
+            }
+        },
+        "Polish key vocabulary": {
+            "key_vocabulary": [
+                {
+                    "term": "la melodie",
+                    "translation": "melody",
+                    "part_of_speech": "noun",
+                    "example_sentence": "",
+                    "note": "Polished topic word.",
+                }
+            ]
+        },
+        "Polish topic vocabulary groups": {
+            "vocabulary_groups": [
+                {"topic": "Music", "items": [{"term": "le rythme", "translation": "rhythm"}]}
+            ]
+        },
+        "Polish important verbs": {
+            "important_verbs": [{"infinitive": "jouer", "translation": "to play"}]
+        },
+        "Polish grammar patterns": {
+            "grammar_patterns": [
+                {"name": "Present tense", "explanation": "Used for facts.", "examples": ["Le rythme organise."]}
+            ]
+        },
+        "Polish useful phrases": {
+            "useful_phrases": [
+                {"phrase": "par exemple", "translation": "for example", "usage_note": "Useful for examples."}
+            ]
+        },
+        "Polish mini lessons": {
+            "mini_lessons": [
+                {"title": "Explain a concept", "explanation": "Use a simple sentence.", "examples": ["Le rythme est clair."]}
+            ]
+        },
+        "Polish practice exercises": {
+            "practice_exercises": [
+                {"title": "Exercise", "instructions": "Fill the blank.", "questions": ["Je ___."], "answers": ["joue"]}
+            ]
+        },
+        "Polish reading practice": {
+            "reading_practice": {
+                "passage": "Je joue de la musique.",
+                "questions": ["Que fait la personne?"],
+                "answers": ["Elle joue."],
+            }
+        },
+        "Polish review sheet": {
+            "review_sheet": {
+                "key_points": ["Review music words."],
+                "vocabulary_to_review": ["musique"],
+                "grammar_to_review": ["present tense"],
+                "study_plan": ["Review aloud"],
+            }
+        },
+        "Polish answer key": {"answer_key": ["1. joue"]},
     }
     return payloads[section_name]

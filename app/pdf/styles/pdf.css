@@ -1,5 +1,10 @@
 @page {
   margin: 22mm 18mm;
+  @bottom-center {
+    color: #6b7280;
+    content: "DocuLingua Workbook · " counter(page);
+    font-size: 8pt;
+  }
 }
 
 body {
@@ -13,9 +18,16 @@ section {
   margin-bottom: 14mm;
 }
 
+.major-section {
+  break-before: page;
+}
+
 .cover {
   break-after: page;
-  padding-top: 50mm;
+  background: #f4f8f7;
+  border: 1px solid #cbd5d2;
+  min-height: 210mm;
+  padding: 42mm 14mm 20mm;
   text-align: center;
 }
 
@@ -75,6 +87,15 @@ th {
   font-weight: 700;
 }
 
+.toc {
+  break-after: page;
+}
+
+.toc ol {
+  columns: 2;
+  font-size: 12pt;
+}
+
 .meta-table {
   margin-left: auto;
   margin-right: auto;
@@ -91,6 +112,32 @@ th {
   border-left: 3px solid #6b8f8a;
   margin-bottom: 7mm;
   padding-left: 5mm;
+}
+
+.callout,
+.lesson-block,
+.exercise-block {
+  border: 1px solid #cbd5d2;
+  border-left: 4px solid #3f7771;
+  margin-bottom: 7mm;
+  padding: 4mm 5mm;
+}
+
+.callout {
+  background: #f7fbfa;
+}
+
+.lesson-block {
+  background: #fbfcfc;
+}
+
+.exercise-block {
+  background: #fffdf7;
+  border-left-color: #a9792b;
+}
+
+.review-sheet {
+  background: #fbfcfc;
 }
 
 .note {

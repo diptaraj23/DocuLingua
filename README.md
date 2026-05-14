@@ -119,6 +119,10 @@ The provider router records which provider and model generated each section. Gen
 
 The Streamlit generation flow also shows real-time progress: an overall progress bar, checklist-style process table, status icons, per-step duration, and provider/model labels for LLM-generated sections.
 
+An optional final Learning Material Polisher can run after the guide is generated. It now polishes each content section separately, validates each polished section back into the existing schema, improves flow and workbook tone, and can fall back to the unpolished section if a polishing call fails. This improves PDF readability but may use several additional provider calls.
+
+Prompt text is stored in Markdown templates under `app/llm/prompt_templates/`. The Python prompt builder functions in `app/llm/prompts.py` load and render those templates so prompts can be edited without digging through large Python strings.
+
 Tests use mocked provider responses and do not call real APIs.
 
 To use LLM generation:

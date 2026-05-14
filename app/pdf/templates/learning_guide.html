@@ -8,7 +8,7 @@
   <body>
     <main>
       <section class="cover">
-        <p class="eyebrow">DocuLingua Sample Guide</p>
+        <p class="eyebrow">DocuLingua Learning Workbook</p>
         <h1>{{ guide.title }}</h1>
         <p class="subtitle">{{ guide.source_language }} to {{ guide.explanation_language }}</p>
         <table class="meta-table">
@@ -17,11 +17,28 @@
             <tr><th>Learner level</th><td>{{ guide.learner_level }}</td></tr>
           </tbody>
         </table>
-        <p class="note">Static PDF learning guide generated from the uploaded document context.</p>
+        <p class="note">A static, self-contained study guide generated from your uploaded document context.</p>
       </section>
 
-      <section>
-        <h2>Document Context Overview</h2>
+      <section class="toc">
+        <h2>Table of Contents</h2>
+        <ol>
+          <li>Document Context Overview</li>
+          <li>Key Vocabulary</li>
+          <li>Topic-Based Vocabulary Groups</li>
+          <li>Important Verbs</li>
+          <li>Grammar Patterns</li>
+          <li>Useful Phrases and Expressions</li>
+          <li>Mini Language Lessons</li>
+          <li>Practice Exercises</li>
+          <li>Short Reading Practice</li>
+          <li>Review Sheet</li>
+          <li>Answer Key</li>
+        </ol>
+      </section>
+
+      <section class="major-section">
+        <h2>1. Document Context Overview</h2>
         <p>{{ guide.overview.summary }}</p>
         <table>
           <tbody>
@@ -44,16 +61,16 @@
         </table>
 
         <div class="two-column">
-          <article>
-            <h3>Main Learning Focus</h3>
+          <article class="callout">
+            <h3>Learning Goals</h3>
             <ul>
               {% for item in guide.overview.main_learning_focus %}
                 <li>{{ item }}</li>
               {% endfor %}
             </ul>
           </article>
-          <article>
-            <h3>Suggested Study Approach</h3>
+          <article class="callout">
+            <h3>How to Study This Guide</h3>
             <ol>
               {% for item in guide.overview.suggested_study_approach %}
                 <li>{{ item }}</li>
@@ -63,8 +80,8 @@
         </div>
       </section>
 
-      <section>
-        <h2>Key Vocabulary</h2>
+      <section class="major-section">
+        <h2>2. Key Vocabulary</h2>
         <table>
           <thead>
             <tr>
@@ -87,8 +104,8 @@
         </table>
       </section>
 
-      <section>
-        <h2>Topic-Based Vocabulary Groups</h2>
+      <section class="major-section">
+        <h2>3. Topic-Based Vocabulary Groups</h2>
         {% for group in guide.vocabulary_groups %}
           <h3>{{ group.topic }}</h3>
           <table>
@@ -101,8 +118,8 @@
         {% endfor %}
       </section>
 
-      <section>
-        <h2>Important Verbs</h2>
+      <section class="major-section">
+        <h2>4. Important Verbs</h2>
         <table>
           <thead>
             <tr><th>Infinitive</th><th>English</th><th>Form note</th><th>Example</th></tr>
@@ -120,10 +137,10 @@
         </table>
       </section>
 
-      <section>
-        <h2>Grammar Patterns</h2>
+      <section class="major-section">
+        <h2>5. Grammar Patterns</h2>
         {% for pattern in guide.grammar_patterns %}
-          <article class="block">
+          <article class="lesson-block">
             <h3>{{ pattern.name }}</h3>
             <p>{{ pattern.explanation }}</p>
             <ul>
@@ -135,8 +152,8 @@
         {% endfor %}
       </section>
 
-      <section>
-        <h2>Useful Phrases and Expressions</h2>
+      <section class="major-section">
+        <h2>6. Useful Phrases and Expressions</h2>
         <table>
           <thead>
             <tr><th>Phrase</th><th>Meaning</th><th>Usage note</th></tr>
@@ -153,10 +170,10 @@
         </table>
       </section>
 
-      <section>
-        <h2>Mini Language Lessons</h2>
+      <section class="major-section">
+        <h2>7. Mini Language Lessons</h2>
         {% for lesson in guide.mini_lessons %}
-          <article class="block">
+          <article class="lesson-block">
             <h3>{{ lesson.title }}</h3>
             <p>{{ lesson.explanation }}</p>
             <ul>
@@ -169,10 +186,10 @@
         {% endfor %}
       </section>
 
-      <section>
-        <h2>Practice Exercises</h2>
+      <section class="major-section">
+        <h2>8. Practice Exercises</h2>
         {% for exercise in guide.practice_exercises %}
-          <article class="block">
+          <article class="exercise-block">
             <h3>{{ exercise.title }}</h3>
             <p>{{ exercise.instructions }}</p>
             <ol>
@@ -184,8 +201,8 @@
         {% endfor %}
       </section>
 
-      <section>
-        <h2>Short Reading Practice</h2>
+      <section class="major-section">
+        <h2>9. Short Reading Practice</h2>
         <p>{{ guide.reading_practice.passage }}</p>
         <h3>Questions</h3>
         <ol>
@@ -195,10 +212,10 @@
         </ol>
       </section>
 
-      <section>
-        <h2>Review Sheet</h2>
+      <section class="major-section review-sheet">
+        <h2>10. Review Sheet</h2>
         <div class="two-column">
-          <article>
+          <article class="callout">
             <h3>Key Points</h3>
             <ul>
               {% for point in guide.review_sheet.key_points %}
@@ -206,7 +223,7 @@
               {% endfor %}
             </ul>
           </article>
-          <article>
+          <article class="callout">
             <h3>Study Plan</h3>
             <ol>
               {% for step in guide.review_sheet.study_plan %}
@@ -221,20 +238,17 @@
         <p>{{ guide.review_sheet.grammar_to_review | join(", ") }}</p>
       </section>
 
-      <section>
-        <h2>Answer Key</h2>
+      <section class="major-section">
+        <h2>11. Answer Key</h2>
         <ol>
           {% for answer in guide.answer_key %}
             <li>{{ answer }}</li>
-          {% endfor %}
-          {% for answer in guide.reading_practice.answers %}
-            <li>Reading Practice: {{ answer }}</li>
           {% endfor %}
         </ol>
       </section>
 
       {% if guide.generation_metadata and guide.generation_metadata.sections %}
-        <section>
+        <section class="major-section generation-info">
           <h2>Generation Information</h2>
           <table class="generation-table">
             <thead>

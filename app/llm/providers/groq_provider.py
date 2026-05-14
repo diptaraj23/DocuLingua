@@ -162,7 +162,15 @@ def _recover_failed_generation(error: BadRequestError) -> dict[str, Any] | None:
 
 def _looks_like_rate_limit(error: Exception) -> bool:
     text = str(error).lower()
-    return "429" in text or "rate limit" in text or "too many requests" in text
+    return (
+        "429" in text
+        or "rate limit" in text
+        or "rate_limit" in text
+        or "too many requests" in text
+        or "tokens per minute" in text
+        or "tpm" in text
+        or "request too large" in text
+    )
 
 
 def _retry_prompt(prompt: str) -> str:

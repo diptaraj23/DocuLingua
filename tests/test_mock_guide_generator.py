@@ -7,6 +7,8 @@ from app.learning.content_schema import (
     ReviewSheet,
     UsefulPhrase,
     VerbItem,
+    VocabularyGroup,
+    VocabularyItem,
 )
 from app.learning.mock_guide_generator import create_mock_learning_guide
 
@@ -73,3 +75,24 @@ def test_mock_learning_guide_accepts_remaining_external_sections() -> None:
     assert guide.reading_practice == reading
     assert guide.review_sheet == review
     assert guide.answer_key == answer_key
+
+
+def test_learning_guide_accepts_external_title_topic_and_vocabulary_groups() -> None:
+    groups = [
+        VocabularyGroup(
+            topic="Music Theory",
+            items=[VocabularyItem(term="le rythme", translation="rhythm")],
+        )
+    ]
+
+    guide = create_mock_learning_guide(
+        clean_text="Le rythme organise la musique.",
+        stats={"word_count": 5, "paragraph_count": 1},
+        title="Music Fundamentals - French Learning Guide",
+        topic="music fundamentals",
+        vocabulary_groups=groups,
+    )
+
+    assert guide.title == "Music Fundamentals - French Learning Guide"
+    assert guide.topic == "music fundamentals"
+    assert guide.vocabulary_groups == groups

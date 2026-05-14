@@ -101,6 +101,12 @@ provider_order_label = " -> ".join(provider.title() for provider in settings.pro
 st.caption(f"Configured provider order: {provider_order_label}")
 use_llm = st.checkbox("Use LLM providers to generate the full learning guide", value=False)
 fallback_to_mock = st.checkbox("Use sample fallback if an LLM section fails", value=True)
+polish_final_guide = st.checkbox("Polish the final guide with an extra LLM editing pass", value=False)
+st.caption(
+    "Polishing now runs section by section so it is easier to recover from failures, "
+    "but it can use several additional LLM calls."
+)
+fallback_to_unpolished = st.checkbox("Use unpolished guide if polishing fails", value=True)
 if use_llm:
     st.info(
         "Groq is tried first. If Groq rate-limits, returns invalid JSON, or produces unusable schema, "
@@ -148,6 +154,8 @@ if generate_clicked and st.session_state.saved_path:
             use_llm=use_llm,
             fallback_to_mock_on_section_error=fallback_to_mock,
             progress_callback=update_progress_ui,
+            polish_final_guide=polish_final_guide,
+            fallback_to_unpolished_on_polish_error=fallback_to_unpolished,
         )
         guide = result["guide"]
         pdf_path = result["pdf_path"]
@@ -158,6 +166,25 @@ if generate_clicked and st.session_state.saved_path:
         table_placeholder.dataframe(result["process_steps"], use_container_width=True)
         st.write(f"Total processing time: **{result['total_duration_seconds']} seconds**")
         st.write("LLM providers used: **" + ("yes" if use_llm else "no") + "**")
+        st.write("Final polishing enabled: **" + ("yes" if result["polish_final_guide"] else "no") + "**")
+        if result["polish_final_guide"]:
+            st.write("Polishing succeeded: **" + ("yes" if result["polishing_succeeded"] else "no") + "**")
+            if result["polishing_metadata"]:
+                rows = [
+                    {
+                        "section": item.section_name,
+                        "provider": item.provider,
+                        "model": item.model,
+                        "success": item.success,
+                    }
+                    for item in result["polishing_metadata"]
+                ]
+                st.dataframe(rows, use_container_width=True)
+            if result["used_unpolished_fallback_sections"]:
+                st.warning(
+                    "Unpolished fallback used for: "
+                    + ", ".join(result["used_unpolished_fallback_sections"])
+                )
         sections = result["llm_sections_generated"] or ["None; mock content used."]
         st.write("LLM-generated sections: " + ", ".join(sections))
         metadata = result.get("generation_metadata")

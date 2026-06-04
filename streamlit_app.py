@@ -92,30 +92,25 @@ if process_clicked and uploaded_file:
         st.error(f"Could not process document: {error}")
 
 st.divider()
-st.subheader("Sample PDF Guide")
+st.subheader("PDF Learning Guide")
 st.write(
-    "Generate a static PDF guide. LLM providers can now generate all major PDF learning sections. "
+    "Generate a static PDF guide from the uploaded document. LLM providers generate the learning sections. "
     "The guide does not create sentence-wise translation or interactive exercises."
 )
 provider_order_label = " -> ".join(provider.title() for provider in settings.provider_order)
 st.caption(f"Configured provider order: {provider_order_label}")
-use_llm = st.checkbox("Use LLM providers to generate the full learning guide", value=False)
-fallback_to_mock = st.checkbox("Use sample fallback if an LLM section fails", value=True)
 polish_final_guide = st.checkbox("Polish the final guide with an extra LLM editing pass", value=False)
 st.caption(
-    "Polishing now runs section by section so it is easier to recover from failures, "
-    "but it can use several additional LLM calls."
+    "Polishing can improve workbook tone and flow, but it uses several additional LLM calls."
 )
-fallback_to_unpolished = st.checkbox("Use unpolished guide if polishing fails", value=True)
-if use_llm:
-    st.info(
-        "Groq is tried first. If Groq rate-limits, returns invalid JSON, or produces unusable schema, "
-        "the app will try Gemini automatically. The output remains a static PDF."
-    )
-    if "groq" in settings.provider_order and not settings.groq_api_key:
-        st.warning("GROQ_API_KEY is missing. Groq will be skipped and fallback providers may be tried.")
-    if "gemini" in settings.provider_order and not settings.gemini_api_key:
-        st.warning("GEMINI_API_KEY is missing. Gemini fallback will not be available.")
+st.info(
+    "Groq is tried first. Gemini is used automatically when Groq cannot produce a valid section. "
+    "The output remains a static PDF."
+)
+if "groq" in settings.provider_order and not settings.groq_api_key:
+    st.warning("GROQ_API_KEY is missing. Add it to `.env` before generating a guide.")
+if "gemini" in settings.provider_order and not settings.gemini_api_key:
+    st.warning("GEMINI_API_KEY is missing. Add it to `.env` to enable the secondary provider.")
 
 generate_clicked = st.button(
     "Generate PDF Guide",
@@ -136,13 +131,13 @@ if generate_clicked and st.session_state.saved_path:
         table_placeholder.dataframe(tracker.get_display_rows(), use_container_width=True)
 
     try:
-        if use_llm and not any(
+        if not any(
             [
                 settings.groq_api_key if "groq" in settings.provider_order else "",
                 settings.gemini_api_key if "gemini" in settings.provider_order else "",
             ]
         ):
-            st.error("No configured LLM provider API key was found. Add a key to `.env` or disable LLM generation.")
+            st.error("No configured LLM provider API key was found. Add a Groq or Gemini key to `.env`.")
             st.stop()
 
         result = generate_llm_learning_guide_pdf(
@@ -151,11 +146,11 @@ if generate_clicked and st.session_state.saved_path:
             explanation_language=explanation_language,
             learner_level=learner_level,
             output_dir=output_dir,
-            use_llm=use_llm,
-            fallback_to_mock_on_section_error=fallback_to_mock,
+            use_llm=True,
+            fallback_to_mock_on_section_error=False,
             progress_callback=update_progress_ui,
             polish_final_guide=polish_final_guide,
-            fallback_to_unpolished_on_polish_error=fallback_to_unpolished,
+            fallback_to_unpolished_on_polish_error=False,
         )
         guide = result["guide"]
         pdf_path = result["pdf_path"]
@@ -165,7 +160,6 @@ if generate_clicked and st.session_state.saved_path:
         progress_placeholder.progress(1.0)
         table_placeholder.dataframe(result["process_steps"], use_container_width=True)
         st.write(f"Total processing time: **{result['total_duration_seconds']} seconds**")
-        st.write("LLM providers used: **" + ("yes" if use_llm else "no") + "**")
         st.write("Final polishing enabled: **" + ("yes" if result["polish_final_guide"] else "no") + "**")
         if result["polish_final_guide"]:
             st.write("Polishing succeeded: **" + ("yes" if result["polishing_succeeded"] else "no") + "**")
@@ -180,20 +174,13 @@ if generate_clicked and st.session_state.saved_path:
                     for item in result["polishing_metadata"]
                 ]
                 st.dataframe(rows, use_container_width=True)
-            if result["used_unpolished_fallback_sections"]:
-                st.warning(
-                    "Unpolished fallback used for: "
-                    + ", ".join(result["used_unpolished_fallback_sections"])
-                )
-        sections = result["llm_sections_generated"] or ["None; mock content used."]
+        sections = result["llm_sections_generated"] or ["None"]
         st.write("LLM-generated sections: " + ", ".join(sections))
         metadata = result.get("generation_metadata")
         if metadata and metadata.sections:
             st.dataframe(metadata.to_display_rows(), use_container_width=True)
         if result["failed_llm_sections"]:
             st.warning("LLM generation failed for: " + ", ".join(result["failed_llm_sections"]))
-        if result["used_mock_fallback_sections"]:
-            st.warning("Sample fallback used for: " + ", ".join(result["used_mock_fallback_sections"]))
         stat_columns = st.columns(4)
         stat_columns[0].metric("Vocabulary", learning_stats.vocabulary_count)
         stat_columns[1].metric("Verbs", learning_stats.important_verbs)
@@ -210,4 +197,4 @@ if generate_clicked and st.session_state.saved_path:
     except Exception as error:
         st.error(f"Could not generate PDF guide: {error}")
 
-st.caption("This MVP flow outputs a static PDF. Disable LLM generation to create a fully mock/sample guide.")
+st.caption("This MVP flow outputs a static PDF learning guide.")

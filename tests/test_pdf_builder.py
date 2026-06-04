@@ -2,20 +2,7 @@ import fitz
 
 from app.learning.mock_guide_generator import create_mock_learning_guide
 from app.llm.providers.metadata import GenerationAttempt, GuideGenerationMetadata, SectionGenerationMetadata
-from app.pdf.pdf_builder import _write_pymupdf_fallback_pdf, build_learning_guide_pdf, render_learning_guide_html
-
-
-def test_html_rendering_contains_major_section_titles() -> None:
-    guide = create_mock_learning_guide(
-        clean_text="La musique rappelle des souvenirs.",
-        stats={"word_count": 5, "paragraph_count": 1},
-    )
-
-    html = render_learning_guide_html(guide)
-
-    assert "Document Context Overview" in html
-    assert "Key Vocabulary" in html
-    assert "Answer Key" in html
+from app.pdf.pdf_builder import _write_pymupdf_fallback_pdf, build_learning_guide_pdf
 
 
 def test_pdf_generation_creates_non_empty_file(tmp_path) -> None:
@@ -29,7 +16,7 @@ def test_pdf_generation_creates_non_empty_file(tmp_path) -> None:
     assert pdf_path.stat().st_size > 0
 
 
-def test_fallback_pdf_contains_workbook_structure_and_compact_metadata(tmp_path) -> None:
+def test_pymupdf_pdf_contains_workbook_structure_and_compact_metadata(tmp_path) -> None:
     guide = create_mock_learning_guide(
         clean_text="Le rythme organise la musique.",
         stats={"word_count": 5, "paragraph_count": 1},
@@ -66,7 +53,7 @@ def test_fallback_pdf_contains_workbook_structure_and_compact_metadata(tmp_path)
     assert "test-model" in text
 
 
-def test_fallback_answer_key_does_not_append_reading_answers(tmp_path) -> None:
+def test_pymupdf_answer_key_does_not_append_reading_answers(tmp_path) -> None:
     guide = create_mock_learning_guide(
         clean_text="Le rythme organise la musique.",
         stats={"word_count": 5, "paragraph_count": 1},

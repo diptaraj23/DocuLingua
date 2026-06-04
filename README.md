@@ -13,7 +13,7 @@ The first MVP is intentionally simple:
 - Upload a PDF or TXT document in Streamlit.
 - Extract and clean document text locally.
 - Generate language-learning content with modular LLM providers.
-- Render a static downloadable PDF workbook with Jinja2 and WeasyPrint.
+- Render a static downloadable PDF workbook with PyMuPDF.
 - Store uploads, generated files, and cache files locally.
 
 The MVP does not include a database, user accounts, FastAPI, Docker, interactive exercises, or sentence-wise translation.
@@ -40,7 +40,7 @@ The planned PDF workbook contains:
 - Frontend: Streamlit
 - Backend: Python
 - LLM providers: Groq first, Gemini fallback
-- PDF generation: Jinja2 and WeasyPrint
+- PDF generation: PyMuPDF
 - PDF extraction: PyMuPDF
 - TXT extraction: Python standard library
 - Configuration: python-dotenv and pydantic-settings

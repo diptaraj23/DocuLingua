@@ -1,32 +1,11 @@
-"""PDF rendering helpers using Jinja2 and WeasyPrint."""
+"""PDF rendering helpers using PyMuPDF."""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-
 from app.learning.content_schema import LearningGuide
-
-
-TEMPLATE_DIR = Path(__file__).parent / "templates"
-STYLE_PATH = Path(__file__).parent / "styles" / "pdf.css"
-
-
-def render_learning_guide_html(guide: LearningGuide) -> str:
-    """Render a LearningGuide object to an HTML string."""
-
-    try:
-        environment = Environment(
-            loader=FileSystemLoader(TEMPLATE_DIR),
-            autoescape=select_autoescape(["html", "xml"]),
-        )
-        template = environment.get_template("learning_guide.html")
-        css = STYLE_PATH.read_text(encoding="utf-8")
-        return template.render(guide=guide, css=css)
-    except Exception as error:
-        raise RuntimeError(f"Could not render learning guide HTML: {error}") from error
 
 
 def build_learning_guide_pdf(guide: LearningGuide, output_path: str | Path) -> Path:
@@ -34,16 +13,7 @@ def build_learning_guide_pdf(guide: LearningGuide, output_path: str | Path) -> P
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    html = render_learning_guide_html(guide)
-
-    try:
-        from weasyprint import HTML
-
-        HTML(string=html, base_url=str(TEMPLATE_DIR)).write_pdf(output)
-    except OSError:
-        _write_pymupdf_fallback_pdf(output, guide)
-    except Exception as error:
-        raise RuntimeError(f"Could not build learning guide PDF: {error}") from error
+    _write_pymupdf_pdf(output, guide)
     return output
 
 
@@ -53,15 +23,13 @@ def render_learning_guide_pdf(guide: LearningGuide, output_path: str | Path) -> 
     return build_learning_guide_pdf(guide, output_path)
 
 
-def _write_pymupdf_fallback_pdf(output_path: Path, guide: LearningGuide) -> None:
-    """Write a workbook-style PDF fallback when WeasyPrint libraries are unavailable."""
+def _write_pymupdf_pdf(output_path: Path, guide: LearningGuide) -> None:
+    """Write a workbook-style PDF with PyMuPDF."""
 
     try:
         import fitz
     except ImportError as error:
-        raise RuntimeError(
-            "Could not build PDF because WeasyPrint native libraries are missing and PyMuPDF is unavailable."
-        ) from error
+        raise RuntimeError("Could not build PDF because PyMuPDF is unavailable.") from error
 
     document = fitz.open()
     writer = _FallbackPdfWriter(document)
@@ -201,6 +169,12 @@ def _write_pymupdf_fallback_pdf(output_path: Path, guide: LearningGuide) -> None
 
     document.save(output_path)
     document.close()
+
+
+def _write_pymupdf_fallback_pdf(output_path: Path, guide: LearningGuide) -> None:
+    """Backward-compatible alias for the PyMuPDF PDF writer."""
+
+    _write_pymupdf_pdf(output_path, guide)
 
 
 class _FallbackPdfWriter:

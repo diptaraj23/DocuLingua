@@ -13,6 +13,9 @@ from app.llm.providers.groq_provider import GroqProvider
 from app.llm.providers.metadata import GenerationAttempt, SectionGenerationMetadata
 
 
+SUPPORTED_PROVIDER_NAMES = {"groq", "gemini"}
+
+
 class ProviderRouter:
     """Try configured LLM providers in order until one returns validated content."""
 
@@ -111,4 +114,9 @@ def _providers_from_settings() -> list[BaseLLMProvider]:
             providers.append(GroqProvider())
         elif provider_name == "gemini":
             providers.append(GeminiProvider())
+        else:
+            supported = ", ".join(sorted(SUPPORTED_PROVIDER_NAMES))
+            raise LLMProviderError(
+                f"Unsupported LLM provider '{provider_name}'. Supported providers: {supported}."
+            )
     return providers

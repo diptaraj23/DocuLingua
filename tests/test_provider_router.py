@@ -2,7 +2,7 @@ import pytest
 
 from app.llm.providers.base import BaseLLMProvider
 from app.llm.providers.exceptions import LLMInvalidJSONError, LLMProviderError, LLMRateLimitError
-from app.llm.providers.router import ProviderRouter
+from app.llm.providers.router import ProviderRouter, _providers_from_settings
 
 
 class FakeProvider(BaseLLMProvider):
@@ -87,3 +87,24 @@ def test_router_raises_when_all_providers_fail() -> None:
 
     with pytest.raises(LLMProviderError, match="All LLM providers failed"):
         router.generate_json_with_fallback("prompt", "Test Section")
+
+
+def test_router_builds_configured_supported_providers(monkeypatch) -> None:
+    from app.llm.providers import router
+
+    monkeypatch.setattr(router.settings, "primary_llm_provider", "groq")
+    monkeypatch.setattr(router.settings, "fallback_llm_providers", "gemini")
+
+    providers = _providers_from_settings()
+
+    assert [provider.name for provider in providers] == ["groq", "gemini"]
+
+
+def test_router_rejects_unsupported_provider_from_settings(monkeypatch) -> None:
+    from app.llm.providers import router
+
+    monkeypatch.setattr(router.settings, "primary_llm_provider", "ollama")
+    monkeypatch.setattr(router.settings, "fallback_llm_providers", "gemini")
+
+    with pytest.raises(LLMProviderError, match="Unsupported LLM provider 'ollama'"):
+        _providers_from_settings()

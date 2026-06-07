@@ -82,6 +82,8 @@ FALLBACK_LLM_PROVIDERS=gemini
 
 LLM generation is optional in the UI. If LLM generation is disabled, the app can still create a mock/sample guide.
 
+NOTE: It is highly recommended to use paid api keys instead of free ones for better user experience. However, you can generate and use your free api keys as well, to do so, we refer you to these tutorials: [Groq](https://www.youtube.com/watch?v=6BRyynZkvf0) and [Gemini](https://www.youtube.com/watch?v=9VDbhptCzlU).
+
 ## Multi-Provider LLM Design
 
 DocuLingua uses a provider router for structured JSON generation. The default order is:

@@ -6,11 +6,12 @@ from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
-
+import os
 from app.config import settings
 from app.core.document_loader import save_uploaded_file
 from app.core.pipeline import generate_llm_learning_guide_pdf, process_document_for_preview
 from app.core.text_cleaner import is_text_too_short
+from dotenv import dotenv_values, load_dotenv, set_key
 
 
 st.set_page_config(page_title="DocuLingua", page_icon="DL", layout="centered")
@@ -52,6 +53,39 @@ def reset_processed_state() -> None:
     st.session_state.processed = None
 
 
+def get_env_file_path() -> Path:
+    return settings.project_root / ".env"
+
+
+def read_api_keys_from_env() -> dict[str, str]:
+    env_path = get_env_file_path()
+    if not env_path.exists():
+        return {"GROQ_API_KEY": "", "GEMINI_API_KEY": ""}
+
+    values = dotenv_values(env_path)
+    return {
+        "GROQ_API_KEY": values.get("GROQ_API_KEY", "") or "",
+        "GEMINI_API_KEY": values.get("GEMINI_API_KEY", "") or "",
+    }
+
+
+def write_api_keys_to_env(groq_api_key: str, gemini_api_key: str) -> None:
+    env_path = get_env_file_path()
+    env_path.touch(exist_ok=True)
+
+    set_key(str(env_path), "GROQ_API_KEY", groq_api_key)
+    set_key(str(env_path), "GEMINI_API_KEY", gemini_api_key)
+
+    load_dotenv(env_path, override=True)
+    os.environ["GROQ_API_KEY"] = groq_api_key
+    os.environ["GEMINI_API_KEY"] = gemini_api_key
+
+    if hasattr(settings, "groq_api_key"):
+        settings.groq_api_key = groq_api_key
+    if hasattr(settings, "gemini_api_key"):
+        settings.gemini_api_key = gemini_api_key
+
+
 upload_dir = settings.project_root / "app" / "storage" / "uploads"
 output_dir = settings.project_root / "app" / "storage" / "outputs"
 upload_dir.mkdir(parents=True, exist_ok=True)
@@ -65,8 +99,43 @@ if "selected_existing_upload" not in st.session_state:
     st.session_state.selected_existing_upload = None
 
 
-st.title("DocuLingua")
-st.caption("Turn a French document into a static PDF learning guide.")
+header_left, header_right = st.columns([8, 1])
+
+with header_left:
+    st.title("DocuLingua")
+    st.caption("Turn a French document into a static PDF learning guide.")
+
+with header_right:
+    with st.popover("⚙️"):
+        st.subheader("API Settings")
+
+        current_keys = read_api_keys_from_env()
+
+        groq_api_key_input = st.text_input(
+            "Groq API key",
+            value=current_keys["GROQ_API_KEY"],
+            type="password",
+            help="Stored in the local .env file.",
+        )
+        gemini_api_key_input = st.text_input(
+            "Gemini API key",
+            value=current_keys["GEMINI_API_KEY"],
+            type="password",
+            help="Stored in the local .env file.",
+        )
+
+        save_keys_clicked = st.button("Save API keys", use_container_width=True)
+
+        if save_keys_clicked:
+            try:
+                write_api_keys_to_env(
+                    groq_api_key=groq_api_key_input.strip(),
+                    gemini_api_key=gemini_api_key_input.strip(),
+                )
+                st.success("API keys saved to .env successfully.")
+                st.rerun()
+            except Exception as error:
+                st.error(f"Could not save API keys: {error}")
 
 st.write(
     "Upload a PDF or TXT file to extract, clean, chunk, preview, and generate a static PDF learning guide."

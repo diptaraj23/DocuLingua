@@ -97,6 +97,12 @@ if "processed" not in st.session_state:
     st.session_state.processed = None
 if "selected_existing_upload" not in st.session_state:
     st.session_state.selected_existing_upload = None
+if "flash_success_message" not in st.session_state:
+    st.session_state.flash_success_message = None
+
+if st.session_state.flash_success_message:
+    st.success(st.session_state.flash_success_message)
+    st.session_state.flash_success_message = None
 
 
 header_left, header_right = st.columns([8, 1])
@@ -132,7 +138,7 @@ with header_right:
                     groq_api_key=groq_api_key_input.strip(),
                     gemini_api_key=gemini_api_key_input.strip(),
                 )
-                st.success("API keys saved to .env successfully.")
+                st.session_state.flash_success_message = "API keys saved to .env successfully."
                 st.rerun()
             except Exception as error:
                 st.error(f"Could not save API keys: {error}")

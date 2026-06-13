@@ -4,16 +4,27 @@ from app.learning.mock_guide_generator import create_mock_learning_guide
 from app.llm.providers.metadata import GenerationAttempt, GuideGenerationMetadata, SectionGenerationMetadata
 from app.pdf.pdf_builder import _write_pymupdf_fallback_pdf, build_learning_guide_pdf
 
+def test_pdf_generation_creates_non_empty_file_wesyprint(tmp_path) -> None:
+    guide = create_mock_learning_guide(
+        clean_text="La musique rappelle des souvenirs.",
+        stats={"word_count": 5, "paragraph_count": 1},
+    )
+    pdf_path, model = build_learning_guide_pdf(guide, tmp_path / "guide.pdf")
+
+    assert pdf_path.exists()
+    assert pdf_path.stat().st_size > 0
+    assert model == "WeasyPrint"
 
 def test_pdf_generation_creates_non_empty_file(tmp_path) -> None:
     guide = create_mock_learning_guide(
         clean_text="La musique rappelle des souvenirs.",
         stats={"word_count": 5, "paragraph_count": 1},
     )
-    pdf_path = build_learning_guide_pdf(guide, tmp_path / "guide.pdf")
+    pdf_path, model = build_learning_guide_pdf(guide, tmp_path / "guide.pdf")
 
     assert pdf_path.exists()
     assert pdf_path.stat().st_size > 0
+    assert model == "WeasyPrint" or model == "PyMuPDF"
 
 
 def test_pymupdf_pdf_contains_workbook_structure_and_compact_metadata(tmp_path) -> None:

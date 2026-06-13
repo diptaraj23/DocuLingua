@@ -7,3 +7,4 @@ pydantic-settings
 pymupdf
 spacy
 pytest
+weasyprint

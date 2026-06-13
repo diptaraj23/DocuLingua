@@ -68,6 +68,7 @@ pip install -r requirements.txt
 ## Environment Variables (New Version)
 Just run the application, on the main screen, click on setting icon "⚙️", then specify your api keys for Groq and Gemini in the designated fields. You can save your API-key configuration (equivalent to manually write to .env), and even more, you can test your API keys live in the setting pane.
 
+**However**, you still need to create a `.env` file like `.env.example` inside the project directory.
 ## Environment Variables (Old Version)
 
 Copy `.env.example` to `.env` and add provider API keys:

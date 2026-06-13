@@ -11,6 +11,7 @@ from app.config import settings
 from app.core.document_loader import save_uploaded_file
 from app.core.pipeline import generate_llm_learning_guide_pdf, process_document_for_preview
 from app.core.text_cleaner import is_text_too_short
+from app.test_api_keys import test_groq_api_key, test_gemini_api_key
 from dotenv import dotenv_values, load_dotenv, set_key
 
 
@@ -99,10 +100,8 @@ if "selected_existing_upload" not in st.session_state:
     st.session_state.selected_existing_upload = None
 if "flash_success_message" not in st.session_state:
     st.session_state.flash_success_message = None
-
-if st.session_state.flash_success_message:
-    st.success(st.session_state.flash_success_message)
-    st.session_state.flash_success_message = None
+if "api_test_results" not in st.session_state:
+    st.session_state.api_test_results = {}
 
 
 header_left, header_right = st.columns([8, 1])
@@ -132,6 +131,17 @@ with header_right:
 
         save_keys_clicked = st.button("Save API keys", use_container_width=True)
 
+        test_keys_clicked = st.button("Test API keys", use_container_width=True)
+
+        if test_keys_clicked:
+            groq_ok, groq_message = test_groq_api_key(groq_api_key_input.strip())
+            gemini_ok, gemini_message = test_gemini_api_key(gemini_api_key_input.strip())
+
+            st.session_state.api_test_results = {
+                "groq": {"ok": groq_ok, "message": groq_message},
+                "gemini": {"ok": gemini_ok, "message": gemini_message},
+            }
+
         if save_keys_clicked:
             try:
                 write_api_keys_to_env(
@@ -142,6 +152,24 @@ with header_right:
                 st.rerun()
             except Exception as error:
                 st.error(f"Could not save API keys: {error}")
+
+        if st.session_state.flash_success_message:
+            st.success(st.session_state.flash_success_message)
+            st.session_state.flash_success_message = None
+
+        api_test_results = st.session_state.get("api_test_results", {})
+
+        if "groq" in api_test_results:
+            if api_test_results["groq"]["ok"]:
+                st.success(api_test_results["groq"]["message"])
+            else:
+                st.error(api_test_results["groq"]["message"])
+
+        if "gemini" in api_test_results:
+            if api_test_results["gemini"]["ok"]:
+                st.success(api_test_results["gemini"]["message"])
+            else:
+                st.error(api_test_results["gemini"]["message"])
 
 st.write(
     "Upload a PDF or TXT file to extract, clean, chunk, preview, and generate a static PDF learning guide."

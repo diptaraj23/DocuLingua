@@ -6,18 +6,25 @@ import re
 from pathlib import Path
 
 from app.learning.content_schema import LearningGuide
+from app.pdf.pdf_builder_weasy import _write_weasyprint_pdf
 
 
-def build_learning_guide_pdf(guide: LearningGuide, output_path: str | Path) -> Path:
+def build_learning_guide_pdf(guide: LearningGuide, output_path: str | Path) -> tuple[Path, str]:
     """Render a LearningGuide object to a static PDF file."""
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    _write_pymupdf_pdf(output, guide)
-    return output
+    try:
+        _write_weasyprint_pdf(Path(output_path), guide)
+        model = "WeasyPrint"
+    except Exception as e:
+        print(f"Weasy print failed: {e}")
+        _write_pymupdf_pdf(Path(output_path), guide)
+        model = "PyMuPDF"
+    return Path(output_path), model
 
 
-def render_learning_guide_pdf(guide: LearningGuide, output_path: str | Path) -> Path:
+def render_learning_guide_pdf(guide: LearningGuide, output_path: str | Path) -> tuple[Path, str]:
     """Backward-compatible alias for building a learning guide PDF."""
 
     return build_learning_guide_pdf(guide, output_path)

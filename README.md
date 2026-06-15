@@ -13,7 +13,7 @@ The first MVP is intentionally simple:
 - Upload a PDF or TXT document in Streamlit.
 - Extract and clean document text locally.
 - Generate language-learning content with modular LLM providers.
-- Render a static downloadable PDF workbook with PyMuPDF.
+- Render a static downloadable PDF workbook with WeasyPrint/PyMuPDF(as a fall back option).
 - Store uploads, generated files, and cache files locally.
 
 The MVP does not include a database, user accounts, FastAPI, Docker, interactive exercises, or sentence-wise translation.
@@ -40,8 +40,8 @@ The planned PDF workbook contains:
 - Frontend: Streamlit
 - Backend: Python
 - LLM providers: Groq first, Gemini fallback
-- PDF generation: PyMuPDF
-- PDF extraction: PyMuPDF
+- PDF generation: WeasyPrint/PyMuPDF
+- PDF extraction: WeasyPrint/PyMuPDF
 - TXT extraction: Python standard library
 - Configuration: python-dotenv and pydantic-settings
 - Schema validation: Pydantic
@@ -49,6 +49,9 @@ The planned PDF workbook contains:
 - Testing: pytest
 
 ## Setup
+Before creating an virtual environment, you need to install WeasyPrint dependencies. To do so visit their website and follow the easy [installation guid](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation).
+
+However, you can skip installing WeasyPrint dependencies and the application still works, the only catch is that it uses PyMuPDF to generate the PDFs. Therefore, the generated material might not be as tidy and clean as WeasyPrint, but it's still acceptable.
 
 Create and activate a virtual environment:
 
@@ -62,8 +65,11 @@ Install dependencies:
 ```powershell
 pip install -r requirements.txt
 ```
+## Environment Variables (New Version)
+Just run the application, on the main screen, click on setting icon "⚙️", then specify your api keys for Groq and Gemini in the designated fields. You can save your API-key configuration (equivalent to manually write to .env), and even more, you can test your API keys live in the setting pane.
 
-## Environment Variables
+**However**, you still need to create a `.env` file like `.env.example` inside the project directory.
+## Environment Variables (Old Version)
 
 Copy `.env.example` to `.env` and add provider API keys:
 
@@ -81,6 +87,8 @@ FALLBACK_LLM_PROVIDERS=gemini
 ```
 
 LLM generation is optional in the UI. If LLM generation is disabled, the app can still create a mock/sample guide.
+
+NOTE: It is highly recommended to use paid api keys instead of free ones for better user experience. However, you can generate and use your free api keys as well, to do so, we refer you to these tutorials: [Groq](https://www.youtube.com/watch?v=6BRyynZkvf0) and [Gemini](https://www.youtube.com/watch?v=9VDbhptCzlU).
 
 ## Multi-Provider LLM Design
 

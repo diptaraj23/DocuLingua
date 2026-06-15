@@ -227,8 +227,8 @@ def generate_mock_learning_guide_pdf(
 
     output_path = Path(output_dir) / f"{Path(file_path).stem}_sample_learning_guide.pdf"
     tracker.start_step("Render PDF")
-    pdf_path = build_learning_guide_pdf(guide, output_path)
-    tracker.complete_step("Render PDF", provider="Local", model="PyMuPDF")
+    pdf_path, model = build_learning_guide_pdf(guide, output_path)
+    tracker.complete_step("Render PDF", provider="Local", model=model)
     total_duration = sum(row["duration_seconds"] or 0 for row in tracker.get_display_rows())
 
     return {
@@ -636,8 +636,8 @@ def generate_llm_learning_guide_pdf(
     tracker.start_step("Render PDF")
     notify()
     try:
-        pdf_path = build_learning_guide_pdf(guide, output_path)
-        tracker.complete_step("Render PDF", provider="Local", model="PyMuPDF")
+        pdf_path, model = build_learning_guide_pdf(guide, output_path)
+        tracker.complete_step("Render PDF", provider="Local", model=model)
         notify()
     except Exception as error:
         tracker.fail_step("Render PDF", str(error))

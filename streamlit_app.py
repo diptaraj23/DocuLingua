@@ -2,24 +2,178 @@
 
 from __future__ import annotations
 
-import streamlit as st
+from datetime import datetime
+from pathlib import Path
 
+import streamlit as st
+import os
 from app.config import settings
 from app.core.document_loader import save_uploaded_file
 from app.core.pipeline import generate_llm_learning_guide_pdf, process_document_for_preview
 from app.core.text_cleaner import is_text_too_short
+from app.test_api_keys import test_groq_api_key, test_gemini_api_key
+from dotenv import dotenv_values, load_dotenv, set_key
 
 
 st.set_page_config(page_title="DocuLingua", page_icon="DL", layout="centered")
 
-st.title("DocuLingua")
-st.caption("Turn a French document into a static PDF learning guide.")
+
+def list_stored_files(directory: Path, allowed_suffixes: set[str] | None = None) -> list[Path]:
+    if not directory.exists():
+        return []
+
+    files = [path for path in directory.iterdir() if path.is_file()]
+    if allowed_suffixes is not None:
+        files = [path for path in files if path.suffix.lower() in allowed_suffixes]
+
+    files.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    return files
+
+
+def build_file_rows(files: list[Path]) -> list[dict[str, str | int]]:
+    rows: list[dict[str, str | int]] = []
+    for path in files:
+        stats = path.stat()
+        rows.append(
+            {
+                "name": path.name,
+                "size_kb": round(stats.st_size / 1024),
+                "modified": datetime.fromtimestamp(stats.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
+    return rows
+
+
+def delete_file(path: Path) -> None:
+    if path.exists() and path.is_file():
+        path.unlink()
+
+
+def reset_processed_state() -> None:
+    st.session_state.saved_path = None
+    st.session_state.processed = None
+
+
+def get_env_file_path() -> Path:
+    return settings.project_root / ".env"
+
+
+def read_api_keys_from_env() -> dict[str, str]:
+    env_path = get_env_file_path()
+    if not env_path.exists():
+        return {"GROQ_API_KEY": "", "GEMINI_API_KEY": ""}
+
+    values = dotenv_values(env_path)
+    return {
+        "GROQ_API_KEY": values.get("GROQ_API_KEY", "") or "",
+        "GEMINI_API_KEY": values.get("GEMINI_API_KEY", "") or "",
+    }
+
+
+def write_api_keys_to_env(groq_api_key: str, gemini_api_key: str) -> None:
+    env_path = get_env_file_path()
+    env_path.touch(exist_ok=True)
+
+    set_key(str(env_path), "GROQ_API_KEY", groq_api_key)
+    set_key(str(env_path), "GEMINI_API_KEY", gemini_api_key)
+
+    load_dotenv(env_path, override=True)
+    os.environ["GROQ_API_KEY"] = groq_api_key
+    os.environ["GEMINI_API_KEY"] = gemini_api_key
+
+    if hasattr(settings, "groq_api_key"):
+        settings.groq_api_key = groq_api_key
+    if hasattr(settings, "gemini_api_key"):
+        settings.gemini_api_key = gemini_api_key
+
+
+upload_dir = settings.project_root / "app" / "storage" / "uploads"
+output_dir = settings.project_root / "app" / "storage" / "outputs"
+upload_dir.mkdir(parents=True, exist_ok=True)
+output_dir.mkdir(parents=True, exist_ok=True)
+
+if "saved_path" not in st.session_state:
+    st.session_state.saved_path = None
+if "processed" not in st.session_state:
+    st.session_state.processed = None
+if "selected_existing_upload" not in st.session_state:
+    st.session_state.selected_existing_upload = None
+if "flash_success_message" not in st.session_state:
+    st.session_state.flash_success_message = None
+if "api_test_results" not in st.session_state:
+    st.session_state.api_test_results = {}
+
+
+header_left, header_right = st.columns([8, 1])
+
+with header_left:
+    st.title("DocuLingua")
+    st.caption("Turn a French document into a static PDF learning guide.")
+
+with header_right:
+    with st.popover("⚙️"):
+        st.subheader("API Settings")
+
+        current_keys = read_api_keys_from_env()
+
+        groq_api_key_input = st.text_input(
+            "Groq API key",
+            value=current_keys["GROQ_API_KEY"],
+            type="password",
+            help="Stored in the local .env file.",
+        )
+        gemini_api_key_input = st.text_input(
+            "Gemini API key",
+            value=current_keys["GEMINI_API_KEY"],
+            type="password",
+            help="Stored in the local .env file.",
+        )
+
+        save_keys_clicked = st.button("Save API keys", use_container_width=True)
+
+        test_keys_clicked = st.button("Test API keys", use_container_width=True)
+
+        if test_keys_clicked:
+            groq_ok, groq_message = test_groq_api_key(groq_api_key_input.strip())
+            gemini_ok, gemini_message = test_gemini_api_key(gemini_api_key_input.strip())
+
+            st.session_state.api_test_results = {
+                "groq": {"ok": groq_ok, "message": groq_message},
+                "gemini": {"ok": gemini_ok, "message": gemini_message},
+            }
+
+        if save_keys_clicked:
+            try:
+                write_api_keys_to_env(
+                    groq_api_key=groq_api_key_input.strip(),
+                    gemini_api_key=gemini_api_key_input.strip(),
+                )
+                st.session_state.flash_success_message = "API keys saved to .env successfully."
+                st.rerun()
+            except Exception as error:
+                st.error(f"Could not save API keys: {error}")
+
+        if st.session_state.flash_success_message:
+            st.success(st.session_state.flash_success_message)
+            st.session_state.flash_success_message = None
+
+        api_test_results = st.session_state.get("api_test_results", {})
+
+        if "groq" in api_test_results:
+            if api_test_results["groq"]["ok"]:
+                st.success(api_test_results["groq"]["message"])
+            else:
+                st.error(api_test_results["groq"]["message"])
+
+        if "gemini" in api_test_results:
+            if api_test_results["gemini"]["ok"]:
+                st.success(api_test_results["gemini"]["message"])
+            else:
+                st.error(api_test_results["gemini"]["message"])
 
 st.write(
     "Upload a PDF or TXT file to extract, clean, chunk, preview, and generate a static PDF learning guide."
 )
-
-uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt"])
 
 source_language = st.selectbox("Source language", ["French"], index=0)
 explanation_language = st.selectbox("Explanation language", ["English"], index=0)
@@ -30,31 +184,64 @@ learner_level = st.selectbox(
 )
 
 st.divider()
+st.subheader("Input document")
 
-if "saved_path" not in st.session_state:
-    st.session_state.saved_path = None
-if "processed" not in st.session_state:
-    st.session_state.processed = None
+input_mode = st.radio(
+    "Choose input source",
+    ["Upload new file", "Use stored upload"],
+    horizontal=True,
+)
 
-if uploaded_file:
-    st.info(f"Ready to process: {uploaded_file.name}")
-    st.write(
-        f"Source: {source_language} | Explanations: {explanation_language} | "
-        f"Level: {learner_level}"
-    )
+uploaded_file = None
+selected_stored_path: Path | None = None
+
+stored_uploads = list_stored_files(upload_dir, allowed_suffixes={".pdf", ".txt"})
+
+if input_mode == "Upload new file":
+    uploaded_file = st.file_uploader("Upload a document", type=["pdf", "txt"])
+    if uploaded_file:
+        st.info(f"Ready to process: {uploaded_file.name}")
+    else:
+        st.info("Upload a PDF or TXT file to start the ingestion preview.")
 else:
-    st.info("Upload a PDF or TXT file to start the ingestion preview.")
+    if stored_uploads:
+        selected_name = st.selectbox(
+            "Choose a previously uploaded file",
+            options=[path.name for path in stored_uploads],
+            index=0,
+        )
+        selected_stored_path = next(path for path in stored_uploads if path.name == selected_name)
+        st.info(f"Ready to process stored file: {selected_stored_path.name}")
+    else:
+        st.info("No stored uploads were found. Upload a new file first.")
 
-process_clicked = st.button("Process Document", disabled=uploaded_file is None)
+st.write(
+    f"Source: {source_language} | Explanations: {explanation_language} | "
+    f"Level: {learner_level}"
+)
 
-if process_clicked and uploaded_file:
-    upload_dir = settings.project_root / "app" / "storage" / "uploads"
+process_disabled = False
+if input_mode == "Upload new file" and uploaded_file is None:
+    process_disabled = True
+if input_mode == "Use stored upload" and selected_stored_path is None:
+    process_disabled = True
 
+process_clicked = st.button("Process Document", disabled=process_disabled)
+
+if process_clicked:
     try:
-        saved_path = save_uploaded_file(uploaded_file, upload_dir)
-        processed = process_document_for_preview(saved_path)
-        st.session_state.saved_path = saved_path
+        if input_mode == "Upload new file" and uploaded_file is not None:
+            current_input_path = save_uploaded_file(uploaded_file, upload_dir)
+        elif input_mode == "Use stored upload" and selected_stored_path is not None:
+            current_input_path = selected_stored_path
+        else:
+            st.error("No valid input document was selected.")
+            st.stop()
+
+        processed = process_document_for_preview(current_input_path)
+        st.session_state.saved_path = current_input_path
         st.session_state.processed = processed
+
         stats = processed["stats"]
         chunks = processed["chunks"]
         cleaned_text = processed["clean_text"]
@@ -87,9 +274,28 @@ if process_clicked and uploaded_file:
             first_chunk = chunks[0] if chunks else ""
             st.text_area("Chunk 1", first_chunk, height=260, disabled=True)
 
-        st.caption(f"Saved upload locally at: `{saved_path}`")
+        st.caption(f"Current input path: `{current_input_path}`")
     except Exception as error:
         st.error(f"Could not process document: {error}")
+
+st.divider()
+st.subheader("Stored uploads")
+
+if stored_uploads:
+    st.dataframe(build_file_rows(stored_uploads), use_container_width=True)
+
+    for path in stored_uploads:
+        row_columns = st.columns([5, 2, 2])
+        row_columns[0].write(path.name)
+        row_columns[1].write(f"{round(path.stat().st_size / 1024)} KB")
+        if row_columns[2].button("Delete", key=f"delete_upload_{path.name}"):
+            was_active_input = st.session_state.saved_path == path
+            delete_file(path)
+            if was_active_input:
+                reset_processed_state()
+            st.rerun()
+else:
+    st.caption("No uploaded source files are currently stored.")
 
 st.divider()
 st.subheader("PDF Learning Guide")
@@ -97,16 +303,20 @@ st.write(
     "Generate a static PDF guide from the uploaded document. LLM providers generate the learning sections. "
     "The guide does not create sentence-wise translation or interactive exercises."
 )
+
 provider_order_label = " -> ".join(provider.title() for provider in settings.provider_order)
 st.caption(f"Configured provider order: {provider_order_label}")
+
 polish_final_guide = st.checkbox("Polish the final guide with an extra LLM editing pass", value=False)
 st.caption(
     "Polishing can improve workbook tone and flow, but it uses several additional LLM calls."
 )
+
 st.info(
     "Groq is tried first. Gemini is used automatically when Groq cannot produce a valid section. "
     "The output remains a static PDF."
 )
+
 if "groq" in settings.provider_order and not settings.groq_api_key:
     st.warning("GROQ_API_KEY is missing. Add it to `.env` before generating a guide.")
 if "gemini" in settings.provider_order and not settings.gemini_api_key:
@@ -118,7 +328,6 @@ generate_clicked = st.button(
 )
 
 if generate_clicked and st.session_state.saved_path:
-    output_dir = settings.project_root / "app" / "storage" / "outputs"
     progress_placeholder = st.empty()
     status_placeholder = st.empty()
     table_placeholder = st.empty()
@@ -161,6 +370,7 @@ if generate_clicked and st.session_state.saved_path:
         table_placeholder.dataframe(result["process_steps"], use_container_width=True)
         st.write(f"Total processing time: **{result['total_duration_seconds']} seconds**")
         st.write("Final polishing enabled: **" + ("yes" if result["polish_final_guide"] else "no") + "**")
+
         if result["polish_final_guide"]:
             st.write("Polishing succeeded: **" + ("yes" if result["polishing_succeeded"] else "no") + "**")
             if result["polishing_metadata"]:
@@ -174,13 +384,17 @@ if generate_clicked and st.session_state.saved_path:
                     for item in result["polishing_metadata"]
                 ]
                 st.dataframe(rows, use_container_width=True)
+
         sections = result["llm_sections_generated"] or ["None"]
         st.write("LLM-generated sections: " + ", ".join(sections))
+
         metadata = result.get("generation_metadata")
         if metadata and metadata.sections:
             st.dataframe(metadata.to_display_rows(), use_container_width=True)
+
         if result["failed_llm_sections"]:
             st.warning("LLM generation failed for: " + ", ".join(result["failed_llm_sections"]))
+
         stat_columns = st.columns(4)
         stat_columns[0].metric("Vocabulary", learning_stats.vocabulary_count)
         stat_columns[1].metric("Verbs", learning_stats.important_verbs)
@@ -196,5 +410,31 @@ if generate_clicked and st.session_state.saved_path:
         )
     except Exception as error:
         st.error(f"Could not generate PDF guide: {error}")
+
+st.divider()
+st.subheader("Generated PDFs")
+
+stored_outputs = list_stored_files(output_dir, allowed_suffixes={".pdf"})
+
+if stored_outputs:
+    st.dataframe(build_file_rows(stored_outputs), use_container_width=True)
+
+    for path in stored_outputs:
+        row_columns = st.columns([4, 2, 2, 2])
+        row_columns[0].write(path.name)
+        row_columns[1].write(f"{round(path.stat().st_size / 1024)} KB")
+        with row_columns[2]:
+            st.download_button(
+                "Download",
+                data=path.read_bytes(),
+                file_name=path.name,
+                mime="application/pdf",
+                key=f"download_output_{path.name}",
+            )
+        if row_columns[3].button("Delete", key=f"delete_output_{path.name}"):
+            delete_file(path)
+            st.rerun()
+else:
+    st.caption("No generated PDF guides are currently stored.")
 
 st.caption("This MVP flow outputs a static PDF learning guide.")

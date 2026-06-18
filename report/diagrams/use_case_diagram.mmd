@@ -1,0 +1,27 @@
+flowchart LR
+    User["Language Learner / Student"]
+    Developer["Developer / Maintainer"]
+
+    UC1(("Open Streamlit app"))
+    UC2(("Upload PDF or TXT document"))
+    UC3(("Use stored upload"))
+    UC4(("Preview extracted and cleaned text"))
+    UC5(("Configure API keys"))
+    UC6(("Generate learning material"))
+    UC7(("Review vocabulary output"))
+    UC8(("Review grammar and practice output"))
+    UC9(("Download static PDF guide"))
+    UC10(("Run tests and maintain providers"))
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+    User --> UC4
+    User --> UC5
+    User --> UC6
+    UC6 --> UC7
+    UC6 --> UC8
+    User --> UC9
+
+    Developer --> UC10
+    Developer --> UC5

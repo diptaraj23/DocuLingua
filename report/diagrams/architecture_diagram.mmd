@@ -1,0 +1,31 @@
+flowchart TB
+    User["User"]
+    UI["Streamlit UI<br/>streamlit_app.py"]
+    Config["Configuration<br/>.env, pydantic-settings"]
+    Storage["Local Storage<br/>uploads, outputs, cache"]
+    Core["Core Processing<br/>document_loader, text_cleaner, text_chunker, text_stats, progress_tracker"]
+    Learning["Learning Guide Layer<br/>content_schema, llm_guide_generator, guide_polisher, mock_guide_generator"]
+    Prompts["Prompt Templates<br/>app/llm/prompt_templates/*.md"]
+    Router["LLM Provider Router<br/>fallback and validation"]
+    Groq["External Groq API"]
+    Gemini["External Gemini API"]
+    PDF["PDF Generation<br/>WeasyPrint with PyMuPDF fallback"]
+    Tests["Automated Tests<br/>pytest"]
+
+    User --> UI
+    UI --> Config
+    UI --> Storage
+    UI --> Core
+    Core --> Storage
+    Core --> Learning
+    Learning --> Prompts
+    Learning --> Router
+    Router --> Config
+    Router --> Groq
+    Router --> Gemini
+    Learning --> PDF
+    PDF --> Storage
+    Tests -. verify .-> Core
+    Tests -. verify .-> Learning
+    Tests -. verify .-> Router
+    Tests -. verify .-> PDF

@@ -1,0 +1,41 @@
+flowchart TB
+    UI["streamlit_app.py<br/>Streamlit interface, upload controls, API key settings, PDF download"]
+    Pipeline["app/core/pipeline.py<br/>Preview processing, guide generation workflow, progress tracking"]
+    Loader["app/core/document_loader.py<br/>TXT/PDF loading and uploaded file saving"]
+    Text["app/core/text_cleaner.py<br/>app/core/text_chunker.py<br/>app/core/text_stats.py<br/>Cleaning, chunking, document metrics"]
+    Schema["app/learning/content_schema.py<br/>Pydantic LearningGuide, vocabulary, grammar, exercises, review sheet"]
+    LLMGuide["app/learning/llm_guide_generator.py<br/>Section generation and schema validation"]
+    Polisher["app/learning/guide_polisher.py<br/>Optional final editing pass"]
+    Mock["app/learning/mock_guide_generator.py<br/>Local sample guide fallback content"]
+    Prompts["app/llm/prompts.py and prompt_templates<br/>Prompt construction from Markdown templates"]
+    Router["app/llm/providers/router.py<br/>Provider order, fallback, metadata"]
+    Base["app/llm/providers/base.py<br/>Provider interface"]
+    Groq["app/llm/providers/groq_provider.py<br/>Groq JSON provider"]
+    Gemini["app/llm/providers/gemini_provider.py<br/>Gemini JSON provider"]
+    Parser["app/llm/response_parser.py<br/>JSON extraction and parsing"]
+    PDF["app/pdf/pdf_builder.py<br/>WeasyPrint rendering with PyMuPDF fallback"]
+    Config["app/config.py<br/>Environment and provider settings"]
+    Storage["app/storage<br/>uploads, outputs, cache"]
+
+    UI --> Pipeline
+    UI --> Loader
+    UI --> Config
+    UI --> Storage
+    Pipeline --> Loader
+    Pipeline --> Text
+    Pipeline --> LLMGuide
+    Pipeline --> Mock
+    Pipeline --> Polisher
+    Pipeline --> PDF
+    LLMGuide --> Schema
+    LLMGuide --> Prompts
+    LLMGuide --> Router
+    Polisher --> Router
+    Router --> Base
+    Router --> Groq
+    Router --> Gemini
+    Router --> Config
+    Groq --> Parser
+    Gemini --> Parser
+    PDF --> Schema
+    PDF --> Storage

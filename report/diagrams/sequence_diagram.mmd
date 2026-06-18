@@ -1,0 +1,35 @@
+sequenceDiagram
+    actor User
+    participant UI as Streamlit UI
+    participant Loader as Document Loader
+    participant Core as Core Pipeline
+    participant Router as Provider Router
+    participant Groq as Groq API
+    participant Gemini as Gemini API
+    participant PDF as PDF Builder
+    participant Storage as Local Storage
+
+    User->>UI: Open application
+    User->>UI: Upload or select PDF/TXT document
+    UI->>Loader: Save or load selected file
+    Loader->>Storage: Store upload if new
+    UI->>Core: Process document for preview
+    Core->>Loader: Extract document text
+    Core->>Core: Clean text, chunk text, calculate statistics
+    Core-->>UI: Return preview data and metrics
+    User->>UI: Click Generate PDF Guide
+    UI->>Core: Generate LLM learning guide PDF
+    Core->>Router: Request validated JSON sections
+    Router->>Groq: Try primary provider
+    alt Groq succeeds
+        Groq-->>Router: Valid JSON section
+    else Groq unavailable or invalid
+        Router->>Gemini: Try fallback provider
+        Gemini-->>Router: Valid JSON section or error
+    end
+    Router-->>Core: Section content and metadata
+    Core->>PDF: Build static PDF from LearningGuide
+    PDF->>Storage: Save generated PDF
+    Core-->>UI: Return PDF path, metadata, progress rows
+    UI-->>User: Show download button
+    User->>UI: Download generated PDF

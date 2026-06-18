@@ -31,7 +31,6 @@ app/storage/cache/*
 !app/storage/cache/.gitkeep
 
 # Generated files
-*.pdf
 data/sample_outputs/*
 !data/sample_outputs/.gitkeep
 

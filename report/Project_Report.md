@@ -1,5 +1,7 @@
 # Project Report: DocuLingua
 
+**GROUPE MEMEBERS**: **Amirarsalan Sanati**, **Diptaraj Sen**
+
 ## 1. Project Idea
 
 DocuLingua is a Python and Streamlit application that helps language learners study a foreign-language document by turning uploaded PDF or TXT content into a structured learning guide. The current repository focuses on French source documents with English explanations, and the intended users are learners who want vocabulary, grammar, phrases, exercises, and review material from real texts rather than generic textbook examples.
